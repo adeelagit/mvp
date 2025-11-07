@@ -38,9 +38,9 @@ class VehicleController extends Controller
 
             $validated = $validator->validated();
 
-            $type = VehicleType::firstOrCreate(['name' => ucfirst(strtolower($request->vehicle_type))]);
+            $type = VehicleType::firstOrCreate(['name' => ucfirst(strtolower($validated['vehicle_type']))]);
 
-            $brand = Brand::firstOrCreate(['name' => ucfirst(strtolower($request->brand_name))]);
+            $brand = Brand::firstOrCreate(['name' => ucfirst(strtolower($validated['brand_name']))]);
 
             $vehicle = Vehicle::create([
                 'user_id' => $user->id,
@@ -60,6 +60,19 @@ class VehicleController extends Controller
             'created' => $createdVehicles,
             'errors' => $errors,
         ], 201);
+    }
+
+    /**
+     * List all supported EV brands
+     */
+    public function getBrand()
+    {
+        $brands = Brand::select('id', 'name', 'logo')->orderBy('name')->get();
+
+        return response()->json([
+            'message' => 'Brand list fetched successfully',
+            'brands' => $brands
+        ]);
     }
 
 }

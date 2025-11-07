@@ -8,6 +8,7 @@ use App\Http\Controllers\API\VehicleController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+Route::get('/brands', [VehicleController::class, 'getBrand']);
 
 Route::middleware('auth:api')->group(function () {
     Route::post('/tickets', [ServiceTicketController::class, 'store']);
