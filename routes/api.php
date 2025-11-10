@@ -18,6 +18,7 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/vehicles', [VehicleController::class, 'index']);
     Route::get('/vehicle/{vehicle}', [VehicleController::class, 'show']);
     Route::put('/vehicle/{vehicle}', [VehicleController::class, 'update']);
+    Route::delete('/vehicle/{vehicle}', [VehicleController::class, 'destroy']);
 
 
     Route::post('/location', [LocationController::class, 'store']);
