@@ -16,6 +16,7 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('/vehicles', [VehicleController::class, 'store']);
     Route::get('/vehicles', [VehicleController::class, 'index']);
+    Route::get('/vehicle/{vehicle}', [VehicleController::class, 'show']);
 
 
     Route::post('/location', [LocationController::class, 'store']);

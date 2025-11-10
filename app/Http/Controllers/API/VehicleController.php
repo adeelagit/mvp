@@ -81,4 +81,12 @@ class VehicleController extends Controller
         ]);
     }
 
+    public function show(Vehicle $vehicle)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $vehicle
+        ]);
+    }
+
 }
