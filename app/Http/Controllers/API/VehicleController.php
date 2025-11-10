@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Validator;
 
 class VehicleController extends Controller
 {
+    public function index(Request $request)
+    {
+        $vehicles = $request->user()->vehicles()->with(['brand', 'type'])->get();
+        return response()->json($vehicles);
+    }
+
     public function store(Request $request)
     {
         $user = auth('api')->user();

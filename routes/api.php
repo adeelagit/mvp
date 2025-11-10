@@ -13,7 +13,11 @@ Route::get('/brands', [VehicleController::class, 'getBrand']);
 
 Route::middleware('auth:api')->group(function () {
     Route::post('/tickets', [ServiceTicketController::class, 'store']);
+
     Route::post('/vehicles', [VehicleController::class, 'store']);
+    Route::get('/vehicles', [VehicleController::class, 'index']);
+
+
     Route::post('/location', [LocationController::class, 'store']);
     Route::get('/location', [LocationController::class, 'current']);
 });
