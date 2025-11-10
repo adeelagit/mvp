@@ -89,4 +89,24 @@ class VehicleController extends Controller
         ]);
     }
 
+    public function update(Request $request, Vehicle $vehicle)
+    {
+        $validated = $request->validate([
+            'vehicle_type' => 'required|string',
+            'brand_name' => 'required|string',
+            'model_name' => 'required|string',
+            'license_plate' => 'required|string|unique:vehicles,license_plate,' . $vehicle->id,
+            'vehicle_color' => 'nullable|string',
+            'vehicle_year' => 'nullable|integer|min:1900|max:' . date('Y'),
+        ]);
+
+        $vehicle->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle updated successfully',
+            'data' => $vehicle
+        ]);
+    }
+
 }
