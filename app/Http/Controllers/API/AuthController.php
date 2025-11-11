@@ -100,4 +100,17 @@ class AuthController extends Controller
         return response()->json(['message' => 'Email verified successfully! You can now log in.']);
     }
 
+    /**
+     * Log the user out (Invalidate the token).
+     */
+    public function logout()
+    {
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return response()->json(['message'=>'Successfully logged out']);
+        } catch (\Exception $e){
+            return response()->json(['error'=>'Failed to logout'], 500);
+        }
+    }
+
 }
