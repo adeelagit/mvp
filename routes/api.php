@@ -8,6 +8,7 @@ use App\Http\Controllers\API\VehicleController;
 use App\Http\Controllers\LocationController;
 
 Route::post('/register', [AuthController::class, 'register']);
+Route::get('/verify-email/{token}', [AuthController::class, 'verifyEmail']);
 Route::post('login', [AuthController::class, 'login']);
 Route::get('/brands', [VehicleController::class, 'getBrand']);
 

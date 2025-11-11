@@ -8,6 +8,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\VerifyEmail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -34,16 +37,15 @@ class AuthController extends Controller
         }
 
         $data['password'] = Hash::make($data['password']);
-
+        $verification_token = Str::random(64);
+        $data['verification_token'] = $verification_token;
         $user = User::create($data);
 
-        $token = JWTAuth::fromUser($user);
+        Mail::to($user->email)->send(new VerifyEmail($user));
 
         return response()->json([
-            'message' => 'User registered successfully',
+            'message' => 'User registered successfully. Please verify your email',
             'user' => $user,
-            'token' => $token,
-            'token_type' => 'bearer',
         ], 201);
     }
 
@@ -58,13 +60,17 @@ class AuthController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $user = User::where('email', $request->email)->first();
 
-        if (!$token = auth('api')->attempt($credentials)) {
-            return response()->json(['error' => 'Invalid credentials'], 401);
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $user = auth('api')->user();
+        if (is_null($user->email_verified_at)) {
+            return response()->json(['message' => 'Please verify your email before login'], 403);
+        }
+
+        $token = JWTAuth::fromUser($user);
 
         return response()->json([
             'message' => 'Login successful',
@@ -73,6 +79,25 @@ class AuthController extends Controller
             'token_type' => 'bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60
         ]);
+    }
+
+    /**
+     * Verify email using token
+     */
+    public function verifyEmail($token)
+    {
+        $user = User::where('verification_token', $token)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Invalid or expired verification token.'], 400);
+        }
+
+        $user->update([
+            'email_verified_at' => now(),
+            'verification_token' => null
+        ]);
+
+        return response()->json(['message' => 'Email verified successfully! You can now log in.']);
     }
 
 }
