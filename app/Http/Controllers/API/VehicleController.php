@@ -73,12 +73,21 @@ class VehicleController extends Controller
      */
     public function getBrand()
     {
-        $brands = Brand::select('id', 'name', 'logo')->orderBy('name')->get();
+        $vehicleTypes = VehicleType::with('brands')->get();
 
-        return response()->json([
-            'message' => 'Brand list fetched successfully',
-            'brands' => $brands
-        ]);
+        $response = [];
+
+        foreach ($vehicleTypes as $type) {
+            $response[strtolower($type->name)] = $type->brands->map(function ($brand) {
+                return [
+                    'id' => $brand->id,
+                    'name' => $brand->name,
+                    'logo' => $brand->logo,
+                ];
+            });
+        }
+
+        return response()->json($response);
     }
 
     public function show(Vehicle $vehicle)
@@ -138,6 +147,31 @@ class VehicleController extends Controller
         return response()->json([
             'success' => true,
             'vehicle_categories'=> $VehicleTypes
+        ]);
+
+    }
+
+    public function storeVehicleBrands(Request $request){
+        // Validate array input
+        $request->validate([
+            '*.name' => 'required|string|max:255',
+            '*.logo' => 'nullable|string',
+            '*.vehicle_type_id' => 'required|exists:vehicle_types,id',
+        ]);
+
+        $brands = [];
+
+        foreach ($request->all() as $item) {
+            $brands[] = Brand::firstOrCreate([
+                'name' => $item['name'],
+                'logo' => $item['logo'],
+                'vehicle_type_id' => $item['vehicle_type_id'],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Brands created successfully',
+            'data' => $brands
         ]);
 
     }

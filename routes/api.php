@@ -10,7 +10,6 @@ use App\Http\Controllers\LocationController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/verify-email/{token}', [AuthController::class, 'verifyEmail']);
 Route::post('login', [AuthController::class, 'login']);
-Route::get('/brands', [VehicleController::class, 'getBrand']);
 
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -30,5 +29,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/vehicle_category', [VehicleController::class, 'storeVehicleCategory']);
     Route::get('/vehicle_categories', [VehicleController::class, 'getVehicleCategory']);
 
+    Route::post('/vehicle_brands', [VehicleController::class, 'storeVehicleBrands']);
+    Route::get('/brands', [VehicleController::class, 'getBrand']);
 
 });
