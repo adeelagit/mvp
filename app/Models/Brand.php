@@ -16,4 +16,9 @@ class Brand extends Model
     {
         return $this->belongsTo(VehicleType::class);
     }
+
+    public function submodels()
+    {
+        return $this->hasMany(Submodel::class);
+    }
 }

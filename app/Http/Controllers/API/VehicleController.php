@@ -73,7 +73,7 @@ class VehicleController extends Controller
      */
     public function getBrand()
     {
-        $vehicleTypes = VehicleType::with('brands')->get();
+        $vehicleTypes = VehicleType::with(['brands.submodels'])->get();
 
         $response = [];
 
@@ -83,10 +83,16 @@ class VehicleController extends Controller
                     'id' => $brand->id,
                     'name' => $brand->name,
                     'logo' => $brand->logo,
+                    'submodels' => $brand->submodels->map(function ($sub) {
+                        return [
+                            'submodel_id' => $sub->id,
+                            'submodel_name' => $sub->submodel_name,
+                            'submodel_image' => $sub->submodel_image,
+                        ];
+                    })
                 ];
             });
         }
-
         return response()->json($response);
     }
 
@@ -152,28 +158,43 @@ class VehicleController extends Controller
     }
 
     public function storeVehicleBrands(Request $request){
-        // Validate array input
+        // Validate the request
         $request->validate([
             '*.name' => 'required|string|max:255',
             '*.logo' => 'nullable|string',
             '*.vehicle_type_id' => 'required|exists:vehicle_types,id',
+            '*.submodels' => 'nullable|array',
+            '*.submodels.*.submodel_name' => 'required|string',
+            '*.submodels.*.submodel_image' => 'nullable|string',
         ]);
 
         $brands = [];
 
         foreach ($request->all() as $item) {
-            $brands[] = Brand::firstOrCreate([
+
+            // Create brand
+            $brand = Brand::create([
                 'name' => $item['name'],
-                'logo' => $item['logo'],
+                'logo' => $item['logo'] ?? null,
                 'vehicle_type_id' => $item['vehicle_type_id'],
             ]);
+
+            // Create submodels if available
+            if (!empty($item['submodels'])) {
+                foreach ($item['submodels'] as $sub) {
+                    $brand->submodels()->create([
+                        'submodel_name' => $sub['submodel_name'],
+                        'submodel_image' => $sub['submodel_image'] ?? null,
+                    ]);
+                }
+            }
+            $brands[] = $brand->load('submodels'); // Load submodels for response
         }
 
         return response()->json([
             'message' => 'Brands created successfully',
             'data' => $brands
         ]);
-
     }
 
 }
