@@ -119,4 +119,27 @@ class VehicleController extends Controller
         ]);
     }
 
+    public function storeVehicleCategory(Request $request){
+        
+        foreach ($request->vehicle_categories as $category) {
+            VehicleType::firstOrCreate([
+                'name' => ucfirst(strtolower($category))
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message'=> 'Vehicle category added successfully'
+        ]);
+    }
+
+    public function getVehicleCategory(){
+        $VehicleTypes = VehicleType::select('id', 'name')->orderBy('name')->get();
+        return response()->json([
+            'success' => true,
+            'vehicle_categories'=> $VehicleTypes
+        ]);
+
+    }
+
 }
