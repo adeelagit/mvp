@@ -297,4 +297,23 @@ class VehicleController extends Controller
             'number_plates' => $number_plates
         ], 200);
     }
+
+    public function deleteBrand($id)
+    {
+        $brand = Brand::find($id);
+
+        if (!$brand) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Brand not found',
+            ], 404);
+        }
+
+        $brand->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Brand and its submodels deleted successfully',
+        ]);
+    }
 }

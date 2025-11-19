@@ -21,4 +21,12 @@ class Brand extends Model
     {
         return $this->hasMany(Submodel::class);
     }
+
+     // Automatically delete submodels when a brand is deleted
+    protected static function booted()
+    {
+        static::deleting(function ($brand) {
+            $brand->submodels()->delete();
+        });
+    }
 }
