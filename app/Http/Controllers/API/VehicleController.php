@@ -266,4 +266,35 @@ class VehicleController extends Controller
         ], 200);
     }
 
+    public function destroyNumberPlate($id)
+    {
+        $plate = NumberPlate::find($id);
+
+        if (!$plate) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Record not found',
+            ], 404);
+        }
+
+        // delete stored image
+        if ($plate->image && \Storage::disk('public')->exists($plate->image)) {
+            \Storage::disk('public')->delete($plate->image);
+        }
+
+        $plate->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Number plate deleted successfully',
+        ], 200);
+    }
+
+    public function getNumberPlates(){
+        $number_plates = NumberPlate::latest()->get();
+        return response()->json([
+            'status' => true,
+            'number_plates' => $number_plates
+        ], 200);
+    }
 }

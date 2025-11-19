@@ -34,5 +34,7 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('/number-plate', [VehicleController::class, 'storeNumberPlate']);
     Route::post('/number-plate/{id}', [VehicleController::class, 'updateNumberPlate']);
+    Route::delete('/number-plate/{id}', [VehicleController::class, 'destroyNumberPlate']);
+    Route::get('/number-plates', [VehicleController::class, 'getNumberPlates']);
 
 });
