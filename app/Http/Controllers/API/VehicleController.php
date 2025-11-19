@@ -33,7 +33,7 @@ class VehicleController extends Controller
                 'vehicle_type'  => 'required|string|max:100',
                 'brand_name'    => 'required|string|max:100',
                 'model_name'    => 'required|string|max:100',
-                'license_plate' => 'required|string|max:50|unique:vehicles,license_plate',
+                'license_plate' => 'string|max:50|unique:vehicles,license_plate',
                 'color'         => 'nullable|string|max:50',
                 'year'          => 'nullable|integer|min:2000|max:' . date('Y'),
             ]);
@@ -83,12 +83,12 @@ class VehicleController extends Controller
                 return [
                     'id' => $brand->id,
                     'name' => $brand->name,
-                    'logo' => $brand->logo,
+                    'logo' => $brand->logo ? asset('storage/' . $brand->logo) : null,
                     'submodels' => $brand->submodels->map(function ($sub) {
                         return [
                             'submodel_id' => $sub->id,
                             'submodel_name' => $sub->submodel_name,
-                            'submodel_image' => $sub->submodel_image,
+                            'submodel_image' => $sub->submodel_image ? asset('storage/' . $sub->submodel_image) : null,
                         ];
                     })
                 ];
@@ -111,7 +111,7 @@ class VehicleController extends Controller
             'vehicle_type' => 'required|string',
             'brand_name' => 'required|string',
             'model_name' => 'required|string',
-            'license_plate' => 'required|string|unique:vehicles,license_plate,' . $vehicle->id,
+            'license_plate' => 'string|unique:vehicles,license_plate,' . $vehicle->id,
             'vehicle_color' => 'nullable|string',
             'vehicle_year' => 'nullable|integer|min:1900|max:' . date('Y'),
         ]);
@@ -162,34 +162,47 @@ class VehicleController extends Controller
         // Validate the request
         $request->validate([
             '*.name' => 'required|string|max:255',
-            '*.logo' => 'nullable|string',
+            '*.logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             '*.vehicle_type_id' => 'required|exists:vehicle_types,id',
             '*.submodels' => 'nullable|array',
             '*.submodels.*.submodel_name' => 'required|string',
-            '*.submodels.*.submodel_image' => 'nullable|string',
+            '*.submodels.*.submodel_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
         ]);
 
         $brands = [];
 
-        foreach ($request->all() as $item) {
+        foreach ($request->all() as $index => $item) {
+            /** ---- SAVE LOGO INTO /storage/app/public/brands ---- **/
+            $logoPath = null;
+            if ($request->file("$index.logo")) {
+                $logoPath = $request->file("$index.logo")->store('brands', 'public');
+            }
 
             // Create brand
             $brand = Brand::create([
                 'name' => $item['name'],
-                'logo' => $item['logo'] ?? null,
+                'logo' => $logoPath,
                 'vehicle_type_id' => $item['vehicle_type_id'],
             ]);
 
             // Create submodels if available
             if (!empty($item['submodels'])) {
-                foreach ($item['submodels'] as $sub) {
+                foreach ($item['submodels'] as $sIndex => $sub) {
+                    
+                    // Save submodel image
+                    $subImgPath = null;
+                    if ($request->file("$index.submodels.$sIndex.submodel_image")) {
+                        $subImgPath = $request->file("$index.submodels.$sIndex.submodel_image")
+                                          ->store('submodels', 'public');
+                    }
+
                     $brand->submodels()->create([
                         'submodel_name' => $sub['submodel_name'],
-                        'submodel_image' => $sub['submodel_image'] ?? null,
+                        'submodel_image' => $subImgPath,
                     ]);
                 }
             }
-            $brands[] = $brand->load('submodels'); // Load submodels for response
+            $brands[] = $brand->load('submodels');
         }
 
         return response()->json([
