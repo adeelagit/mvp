@@ -16,7 +16,7 @@ class ServiceTicketController extends Controller
         $validator = Validator::make($request->all(), [
             'category' => 'required|in:Low Battery / Charging Help,Mechanical Issue,Battery Swap Needed,Flat Tyre,Tow / Pickup Required,Other',
             'other_text' => 'nullable|string|max:500',
-            'media' => 'nullable|file|mimes:jpeg,jpg,png,mp4,mov|max:10240',
+            'media' => 'nullable|file|mimes:jpeg,jpg,png,mp4,mov|max:51200',
         ]);
 
         if ($validator->fails()) {
