@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\{Vehicle, VehicleType, Brand, NumberPlate};
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class VehicleController extends Controller
 {
@@ -204,10 +205,15 @@ class VehicleController extends Controller
             'image' => 'nullable|image|mimes:jpg,jpeg,png',
         ]);
 
-        // Save to DB
+        $imagePath = null; 
+    
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('numberplates', 'public');
+        }
+
         $data = NumberPlate::create([
             'plate_number' => $request->plate_number,
-            'image' => $request->image
+            'image' => $imagePath
         ]);
 
         return response()->json([
@@ -216,4 +222,48 @@ class VehicleController extends Controller
             'data' => $data,
         ], 201);
     }
+
+    public function updateNumberPlate(Request $request, $id)
+    {
+        $plate = NumberPlate::find($id);
+
+        if (!$plate) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Record not found',
+            ], 404);
+        }
+
+        $request->validate([
+            'plate_number' => 'nullable|string|max:255',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png',
+        ]);
+
+        // Update plate number
+        if ($request->has('plate_number')) {
+            $plate->plate_number = $request->plate_number;
+        }
+
+        // Replace image
+        if ($request->hasFile('image')) {
+
+            // delete old image
+            if ($plate->image && \Storage::disk('public')->exists($plate->image)) {
+                \Storage::disk('public')->delete($plate->image);
+            }
+
+            // upload new image
+            $plate->image = $request->file('image')->store('numberplates', 'public');
+        }
+
+        $plate->update();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Number plate updated successfully',
+            'data' => $plate,
+            'image_url' => $plate->image ? asset('storage/'.$plate->image) : null,
+        ], 200);
+    }
+
 }

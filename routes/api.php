@@ -33,5 +33,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/brands', [VehicleController::class, 'getBrand']);
 
     Route::post('/number-plate', [VehicleController::class, 'storeNumberPlate']);
+    Route::post('/number-plate/{id}', [VehicleController::class, 'updateNumberPlate']);
 
 });
