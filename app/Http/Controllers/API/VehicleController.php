@@ -4,7 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\{Vehicle, VehicleType, Brand};
+use App\Models\{Vehicle, VehicleType, Brand, NumberPlate};
 use Illuminate\Support\Facades\Validator;
 
 class VehicleController extends Controller
@@ -197,4 +197,23 @@ class VehicleController extends Controller
         ]);
     }
 
+    public function storeNumberPlate(Request $request)
+    {
+        $request->validate([
+            'plate_number' => 'required|string|max:255',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png',
+        ]);
+
+        // Save to DB
+        $data = NumberPlate::create([
+            'plate_number' => $request->plate_number,
+            'image' => $request->image
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Number plate saved successfully',
+            'data' => $data,
+        ], 201);
+    }
 }
