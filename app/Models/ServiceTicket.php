@@ -18,4 +18,9 @@ class ServiceTicket extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function media()
+    {
+        return $this->hasMany(ServiceTicketMedia::class);
+    }
 }

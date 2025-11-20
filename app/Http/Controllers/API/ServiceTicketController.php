@@ -4,8 +4,14 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ServiceTicket;
+use App\Models\{ServiceTicket, ServiceTicketMedia};
 use Illuminate\Support\Facades\Validator;
+use Intervention\Image\Facades\Image;
+use FFMpeg\FFMpeg;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use App\Jobs\ProcessServiceTicketMedia;
+
 
 class ServiceTicketController extends Controller
 {
@@ -16,7 +22,8 @@ class ServiceTicketController extends Controller
         $validator = Validator::make($request->all(), [
             'category' => 'required|in:Low Battery / Charging Help,Mechanical Issue,Battery Swap Needed,Flat Tyre,Tow / Pickup Required,Other',
             'other_text' => 'nullable|string|max:500',
-            'media' => 'nullable|file|mimes:jpeg,jpg,png,mp4,mov|max:51200',
+            'media' => 'nullable|array',
+            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov|max:61440', // 60MB
         ]);
 
         if ($validator->fails()) {
@@ -24,16 +31,28 @@ class ServiceTicketController extends Controller
         }
 
         $data = $validator->validated();
-        if ($request->hasFile('media')) {
-            $file = $request->file('media');
-            $path = $file->store('service_tickets', 'public'); // storage/app/public/service_tickets
-            $data['media_path'] = $path;
-        }
 
+        // Create ticket first
         $ticket = $user->serviceTickets()->create($data);
 
+        // Handle media
+        if ($request->hasFile('media')) {
+            foreach ($request->file('media') as $file) {
+                $filename = uniqid() . '.' . $file->getClientOriginalExtension();
+
+                // Save temporarily
+                $file->storeAs('temp/service_tickets', $filename, 'public');
+
+                // Dispatch job to move and create DB
+                ProcessServiceTicketMedia::dispatch($ticket->id, $filename);
+            }
+        }
+
+        // Load ticket with media (may be empty at first)
+        $ticket->load('media');
+
         return response()->json([
-            'message' => 'Service ticket created successfully',
+            'message' => 'Service ticket created successfully. Media will be processed shortly.',
             'ticket' => $ticket
         ], 201);
     }
