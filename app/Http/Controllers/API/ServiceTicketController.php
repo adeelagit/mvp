@@ -19,11 +19,20 @@ class ServiceTicketController extends Controller
     {
         $user = auth('api')->user();
 
+        // Check if POST data was truncated (file too large)
+        if (empty($request->all()) && $request->method() === 'POST') {
+            return response()->json([
+                'errors' => [
+                    'media' => ['The uploaded file exceeds the maximum allowed size. Maximum file size is 100MB.']
+                ]
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'category' => 'required|in:Low Battery / Charging Help,Mechanical Issue,Battery Swap Needed,Flat Tyre,Tow / Pickup Required,Other',
             'other_text' => 'nullable|string|max:500',
             'media' => 'nullable|array',
-            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov|max:61440', // 60MB
+            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov|max:102400', // 100MB (in kilobytes)
         ]);
 
         if ($validator->fails()) {
