@@ -69,7 +69,7 @@
     const app = {
         init: async () => {
             await app.data.loadAll(); // Load data from Laravel or Fallback
-            
+            app.data.loadTypes();
             // Render all sections safely
             app.render.dashboard();
             app.render.tickets();
@@ -88,6 +88,43 @@
         },
 
         data: {
+            loadTypes: async () => {
+                try {
+                    const typesResponse = await api.get('http://127.0.0.1:8000/api/vehicle_categories');
+                    
+                    // 1. Check for success and access the 'vehicle_categories' array
+                    let typesData = [];
+                    if (typesResponse && typesResponse.success && Array.isArray(typesResponse.vehicle_categories)) {
+                        typesData = typesResponse.vehicle_categories;
+                    } else {
+                        // Throw error if the expected structure is not found
+                        throw new Error('API response did not contain the expected "vehicle_categories" array.');
+                    }
+                    
+                    // 2. Map the data, providing a fallback icon
+                    if (Array.isArray(typesData)) {
+                        store.types = typesData.map(t => ({
+                            id: t.id,
+                            name: t.name,
+                            // *** IMPORTANT CHANGE: The API is missing 'icon', so we use a fallback ***
+                            icon: t.icon || 'fa-car' // Fallback to a default icon (e.g., 'fa-car' or 'fa-circle')
+                        }));
+                        console.log('✅ Types data loaded successfully from external API.');
+                        
+                        // Re-render the UI immediately after successful load
+                        app.render.types(); 
+                        
+                    } else {
+                        throw new Error('Processed types data was not an array.');
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to load types from API:', error);
+                    // Ensure 'store.types' is reset to an empty array on failure
+                    store.types = []; 
+                    app.render.types(); // Call render to clear the grid if it was trying to display old data
+                }
+            },
+
             loadAll: async () => {
                 try {
                     // Attempt to fetch from Laravel Backend
@@ -403,6 +440,7 @@
                     // Use the provided API endpoint
                     await api.post('/api/vehicle_category', data); 
                     await app.data.loadAll(); 
+                    await app.data.loadTypes();
                 } catch(e) { 
                     console.error('API call failed or failed to fetch all data:', e);
                     // Mock fallback
