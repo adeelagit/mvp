@@ -28,6 +28,9 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('/vehicle_category', [VehicleController::class, 'storeVehicleCategory']);
     Route::get('/vehicle_categories', [VehicleController::class, 'getVehicleCategory']);
+    Route::post('/vehicle_category/{id}', [VehicleController::class, 'updateVehicleCategory']);
+    Route::delete('/vehicle_category/{VehicleType}', [VehicleController::class, 'deleteVehicleCategory']);
+
 
     Route::post('/vehicle_brands', [VehicleController::class, 'storeVehicleBrands']);
     Route::get('/brands', [VehicleController::class, 'getBrand']);

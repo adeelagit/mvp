@@ -430,4 +430,21 @@ class VehicleController extends Controller
         }
        
     }
+
+    public function deleteVehicleCategory($id)
+    {
+        $vehicleType = VehicleType::find($id);
+        if (!$vehicleType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vehicle category not found or already deleted.'
+            ], 404);
+        }
+
+        $vehicleType->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle category deleted successfully.'
+        ], 200);
+    }
 }
