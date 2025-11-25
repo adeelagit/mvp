@@ -15,13 +15,15 @@ Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::post('/tickets', [ServiceTicketController::class, 'store']);
+    Route::get('/tickets', [ServiceTicketController::class, 'index']);
+    Route::delete('/tickets/{id}', [ServiceTicketController::class, 'delete']);
+
 
     Route::post('/vehicles', [VehicleController::class, 'store']);
     Route::get('/vehicles', [VehicleController::class, 'index']);
     Route::get('/vehicle/{vehicle}', [VehicleController::class, 'show']);
     Route::put('/vehicle/{vehicle}', [VehicleController::class, 'update']);
     Route::delete('/vehicle/{vehicle}', [VehicleController::class, 'destroy']);
-
 
     Route::post('/location', [LocationController::class, 'store']);
     Route::get('/location', [LocationController::class, 'current']);
@@ -42,5 +44,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/number-plate/{id}', [VehicleController::class, 'updateNumberPlate']);
     Route::delete('/number-plate/{id}', [VehicleController::class, 'destroyNumberPlate']);
     Route::get('/number-plates', [VehicleController::class, 'getNumberPlates']);
+
+    Route::get('/users', [AuthController::class, 'index']);
 
 });

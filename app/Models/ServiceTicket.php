@@ -23,4 +23,11 @@ class ServiceTicket extends Model
     {
         return $this->hasMany(ServiceTicketMedia::class);
     }
+
+    protected static function booted()
+    {
+        static::deleting(function ($serviceTicket) {
+            $serviceTicket->media()->delete();
+        });
+    }
 }

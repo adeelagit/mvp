@@ -15,6 +15,43 @@ use App\Jobs\ProcessServiceTicketMedia;
 
 class ServiceTicketController extends Controller
 {
+    public function index(Request $request)
+    {
+        $user = auth('api')->user();
+
+        $tickets = $user->serviceTickets()
+            ->with('media') 
+            ->latest() // Order by created_at DESC
+            ->paginate(15); 
+
+        return response()->json([
+            'status' => 'success',
+            'tickets' => $tickets->items(),
+            'pagination' => [
+                'total' => $tickets->total(),
+                'current_page' => $tickets->currentPage(),
+                'last_page' => $tickets->lastPage(),
+            ]
+        ]);
+    }
+
+    public function delete($id)
+    {
+        $serviceTicket = ServiceTicket::find($id);
+        if (!$serviceTicket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Service Ticket not found or already deleted.'
+            ], 404);
+        }
+
+        $serviceTicket->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'Service Ticket deleted successfully.'
+        ], 200);
+    }
+
     public function store(Request $request)
     {
         $user = auth('api')->user();

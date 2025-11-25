@@ -113,4 +113,21 @@ class AuthController extends Controller
         }
     }
 
+    public function index(Request $request)
+    {
+        $users = User::all([
+            'id', 
+            'name', 
+            'email', 
+            'phone', 
+            'profile_image', 
+            'email_verified_at'
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'users' => $users,
+        ]);
+    }
+
 }
