@@ -447,4 +447,38 @@ class VehicleController extends Controller
             'message' => 'Vehicle category deleted successfully.'
         ], 200);
     }
+
+    public function updateVehicleCategory(Request $request, string $id)
+    {
+        // 1. Validation: Ensure the new name is provided and is a valid string.
+        $request->validate([
+            'name' => 'required|string|max:255|unique:vehicle_types,name,' . $id,
+        ]);
+
+        // 2. Attempt to find the VehicleType model by its primary key (ID).
+        $vehicleType = VehicleType::find($id);
+
+        // 3. Check if the category exists. If not found, return a 404 Not Found response.
+        if (!$vehicleType) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vehicle category not found.'
+            ], 404);
+        }
+
+        // 4. Update the name attribute, applying the same standardization as the store method.
+        // The unique validation in step 1 ensures the new name is not a duplicate, 
+        // while ignoring the current record's ID.
+        $vehicleType->name = ucfirst(strtolower($request->input('name')));
+
+        // 5. Save the changes to the database.
+        $vehicleType->save();
+
+        // 6. Return a successful response, including the updated resource.
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle category updated successfully.',
+            'category' => $vehicleType
+        ], 200);
+    }
 }
