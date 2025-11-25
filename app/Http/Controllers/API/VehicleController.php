@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\{Vehicle, VehicleType, Brand, NumberPlate};
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VehicleController extends Controller
 {
@@ -328,5 +330,104 @@ class VehicleController extends Controller
             'status' => true,
             'message' => 'Brand and its submodels deleted successfully',
         ]);
+    }
+
+    public function updateBrand(Request $request, Brand $brand)
+    {
+        // 1. Validate the incoming single brand payload
+        $request->validate([
+            'name' => 'nullable|string|max:255',
+            // logo is nullable, but if present, must be an image
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120', 
+            'vehicle_type_id' => 'nullable|exists:vehicle_types,id',
+            
+            'submodels' => 'nullable|array',
+            // Submodel ID is nullable (for new submodels) or required (for existing ones)
+            'submodels.*.id' => 'nullable|integer|exists:submodels,id', 
+            'submodels.*.submodel_name' => 'required|string',
+            'submodels.*.submodel_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            // --- 2. Handle Brand Logo Update ---
+            $logoPath = $brand->logo;
+
+            if ($request->file('logo')) {
+                // Delete the old logo if it exists
+                if ($brand->logo && Storage::disk('public')->exists($brand->logo)) {
+                    Storage::disk('public')->delete($brand->logo);
+                }
+                // Store the new logo
+                $logoPath = $request->file('logo')->store('brands', 'public');
+            }
+
+            // Update Brand details
+            $brand->update([
+                'name' => $request->name,
+                'logo' => $logoPath,
+                'vehicle_type_id' => $request->vehicle_type_id,
+            ]);
+
+            // --- 3. Handle Submodels (Create, Update, and Sync) ---
+            $submodelIdsToKeep = [];
+            $submodelsInput = $request->input('submodels', []); // Get submodels or empty array
+
+            foreach ($submodelsInput as $sIndex => $sub) {
+                
+                $submodelData = ['submodel_name' => $sub['submodel_name']];
+                $subImgPath = null;
+                
+                // Determine if file upload key is present for this submodel
+                $submodelImageFile = $request->file("submodels.$sIndex.submodel_image");
+                
+                if (isset($sub['id'])) {
+                    // UPDATE existing submodel
+                    // Ensure the submodel belongs to the current brand
+                    $submodel = $brand->submodels()->findOrFail($sub['id']); 
+                    $subImgPath = $submodel->submodel_image; // Default: keep old image
+                    
+                    if ($submodelImageFile) {
+                        // New image uploaded: delete old one and store new
+                        if ($submodel->submodel_image && Storage::disk('public')->exists($submodel->submodel_image)) {
+                            Storage::disk('public')->delete($submodel->submodel_image);
+                        }
+                        $subImgPath = $submodelImageFile->store('submodels', 'public');
+                    }
+
+                    $submodelData['submodel_image'] = $subImgPath;
+                    $submodel->update($submodelData);
+                    $submodelIdsToKeep[] = $submodel->id; // Keep this ID
+                } else {
+                    // CREATE new submodel
+                    if ($submodelImageFile) {
+                        $subImgPath = $submodelImageFile->store('submodels', 'public');
+                    }
+
+                    $submodelData['submodel_image'] = $subImgPath;
+                    $newSubmodel = $brand->submodels()->create($submodelData);
+                    $submodelIdsToKeep[] = $newSubmodel->id; // Keep this new ID
+                }
+            }
+            
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Brand updated successfully',
+                'data' => $brand->load('submodels')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Log the exception for debugging
+            Log::error("Brand update failed for ID: {$brand->id}. Error: " . $e->getMessage()); 
+            
+            return response()->json([
+                'message' => 'An error occurred during the brand update process.',
+                'error' => 'Internal Server Error. Please check logs for details.'
+            ], 500);
+        }
+       
     }
 }

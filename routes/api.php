@@ -32,6 +32,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/vehicle_brands', [VehicleController::class, 'storeVehicleBrands']);
     Route::get('/brands', [VehicleController::class, 'getBrand']);
     Route::delete('/brands/{brand}', [VehicleController::class, 'deleteBrand']);
+    Route::post('/brands/{brand}', [VehicleController::class, 'updateBrand']);
+
 
     Route::post('/number-plate', [VehicleController::class, 'storeNumberPlate']);
     Route::post('/number-plate/{id}', [VehicleController::class, 'updateNumberPlate']);
