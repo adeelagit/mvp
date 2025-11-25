@@ -39,3 +39,15 @@ Route::get('admin/dashboard',[OneChargeController::class, 'index'])->name('admin
     // Route::delete('/vehicles/{id}', [OneChargeController::class, 'deleteVehicle']);
     // Route::delete('/plates/{id}', [OneChargeController::class, 'deletePlate']);
 // });
+
+Route::get('/fix-storage', function () {
+    \Artisan::call('storage:link');
+    return 'Storage link created!';
+});
+
+Route::get('/clear-cache', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('config:cache');
+    return 'Cleared!';
+});
