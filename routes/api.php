@@ -14,7 +14,7 @@ Route::post('login', [AuthController::class, 'login']);
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
-    Route::post('/tickets', [ServiceTicketController::class, 'store']);
+    Route::post('/ticket', [ServiceTicketController::class, 'store']);
     Route::get('/tickets', [ServiceTicketController::class, 'index']);
     Route::delete('/tickets/{id}', [ServiceTicketController::class, 'delete']);
 
@@ -46,5 +46,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/number-plates', [VehicleController::class, 'getNumberPlates']);
 
     Route::get('/users', [AuthController::class, 'index']);
+    Route::post('/tickets', [ServiceTicketController::class, 'storeTicket']);
 
 });

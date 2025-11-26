@@ -165,4 +165,46 @@ class ServiceTicketController extends Controller
         return round($bytes, $precision) . ' ' . $units[$i];
     }
 
+    public function storeTicket(Request $request)
+    {
+        $user = auth('api')->user(); // User from API guard
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'category' => 'required|in:Low Battery / Charging Help,Mechanical Issue,Battery Swap Needed,Flat Tyre,Tow / Pickup Required,Other',
+            'other_text' => 'nullable|string|max:500',
+            'media' => 'nullable|array',
+            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov|max:102400', // 100MB (in kilobytes)
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Create ticket first
+        $ticket = $user->serviceTickets()->create($data);
+        // Upload media files (if exists)
+        if ($request->has('media')) {
+            foreach ($request->file('media') as $file) {
+                $extension = $file->getClientOriginalExtension();
+                $type = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
+                $path = $file->store("service_tickets/{$ticket->id}", 'public');
+                // Store path in DB
+                $ticket->media()->create([
+                    'file_path' => $path,
+                    'type' => $type,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Ticket created successfully!',
+            'ticket' => $ticket->load('media')
+        ], 201);
+    }
 }
