@@ -17,6 +17,6 @@ class ServiceTicketMedia extends Model
 
     public function getFullUrlAttribute()
     {
-        return asset('storage/' . $this->file_path);
+        return rtrim(config('app.url'), '/') . '/storage/' . ltrim($this->file_path, '/');   
     }
 }
