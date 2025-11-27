@@ -20,7 +20,7 @@
             { id: 101, ownerId: 2, typeId: 1, brandId: 1, model: 'Model 3', plate: 'KA09XX1234', color: 'White', year: 2024, type: 'Car' }
         ],
         tickets: [
-            { id: 1, userId: 1, category: 'Low Battery', desc: 'Stuck near central mall', status: 'Pending', lat: 24.27, lng: 55.29, date: '2025-02-20' }
+            { id: 1, userId: 1, category: 'Low Battery', desc: 'Stuck near central mall', status: 'Pending', date: '2025-02-20' }
         ],
         plates: [
             { id: 1, number: 'KA 05 AB 1234', img: '' }
@@ -49,7 +49,22 @@
             return headers;
         },
         get: async (url) => (await fetch(url, { headers: api.getHeaders() })).json(),
-        post: async (url, data) => (await fetch(url, { method: 'POST', headers: api.getHeaders(), body: JSON.stringify(data) })).json(),
+        //post: async (url, data) => (await fetch(url, { method: 'POST', headers: api.getHeaders(), body: JSON.stringify(data) })).json(),
+        post: async (url, data) => {
+            let options = { method: 'POST' };
+
+            // If FormData, do NOT send JSON header
+            if (data instanceof FormData) {
+                options.body = data;
+                options.headers = api.getHeaders();
+                delete options.headers['Content-Type']; // remove JSON header
+            } else {
+                options.body = JSON.stringify(data);
+                options.headers = api.getHeaders();
+            }
+
+            return (await fetch(url, options)).json();
+        },
         delete: async (url) => (await fetch(url, { method: 'DELETE', headers: api.getHeaders() })).json()
     };
     
@@ -67,9 +82,28 @@
 
     // --- APP LOGIC (unchanged) ---
     const app = {
+        logout: async () => {
+    try {
+        await api.post('/api/logout'); // calls Laravel logout
+    } catch(e) {
+        console.warn('Logout failed or offline mode');
+    }
+
+    // remove stored token
+    localStorage.removeItem('auth_token');
+
+    // redirect to login page (or reload)
+    window.location.href = '/login-form';
+},
         init: async () => {
             await app.data.loadAll(); // Load data from Laravel or Fallback
-            app.data.loadTypes();
+            await app.data.loadTypes();
+            await app.data.loadPlates();
+            await app.data.loadBrands();
+            await app.data.loadUsers();
+            await app.data.loadVehicles();
+            await app.data.loadTickets();
+
             // Render all sections safely
             app.render.dashboard();
             app.render.tickets();
@@ -88,10 +122,57 @@
         },
 
         data: {
+            loadBrands: async () => {
+                try {
+                    const response = await api.get('/api/brands');
+                    const brandsArray = [];
+
+                    Object.keys(response).forEach(category => {
+                        response[category].forEach(b => {
+                            brandsArray.push({
+                                id: b.id,
+                                type_id: 1, // Adjust if you have a type mapping
+                                name: b.name,
+                                logo: b.logo,
+                                models: (b.submodels || []).map(sm => sm.submodel_name)
+                            });
+                        });
+                    });
+
+                    store.brands = brandsArray;
+                    console.log("✅ Brands loaded from API:", store.brands);
+                } catch (error) {
+                    console.warn('⚠️ Failed to load brands, using mock fallback.', error);
+                    store.brands = mockStore.brands;
+                }
+
+                app.render.brands();
+            },
+
+            loadPlates: async () => {
+                try {
+                    const platesResponse = await api.get('/api/number-plates');
+                    if (platesResponse && platesResponse.status && Array.isArray(platesResponse['number_plates'])) {
+                        store.plates = platesResponse['number_plates'].map(p => ({
+                            id: p.id,
+                            number: p.plate_number || 'N/A',
+                            img: p.image ? '/storage/' + p.image : ''  // prepend storage path if needed
+                        }));
+                    } else {
+                        throw new Error('Invalid API response for plates');
+                    }
+
+                    console.log("📌 Plates loaded:", store.plates);
+                } catch (error) {
+                    console.warn('⚠️ API failed. Using mock fallback for plates.');
+                    store.plates = mockStore.plates; 
+                }
+                app.render.plates(); // Render after loading
+            },
+
             loadTypes: async () => {
                 try {
-                    const typesResponse = await api.get('http://127.0.0.1:8000/api/vehicle_categories');
-                    
+                    const typesResponse = await api.get('/api/vehicle_categories');
                     // 1. Check for success and access the 'vehicle_categories' array
                     let typesData = [];
                     if (typesResponse && typesResponse.success && Array.isArray(typesResponse.vehicle_categories)) {
@@ -137,7 +218,89 @@
                     console.warn('API Connection failed (Expected in Preview Mode). Using Mock Data.');
                     store = mockStore;
                 }
-            }
+            },
+
+            loadUsers: async () => {
+                try {
+                    const response = await api.get('/api/users'); // fetch from your API
+
+                    if(response && response.status === 'success' && Array.isArray(response.users)) {
+                        store.users = response.users.map(u => ({
+                            id: u.id,
+                            name: u.name,
+                            email: u.email,
+                            phone: u.phone,
+                            joined: u.email_verified_at ? new Date(u.email_verified_at).toLocaleDateString() : 'N/A',
+                            profile_image: u.profile_image
+                        }));
+                    } else {
+                        throw new Error('Invalid API response');
+                    }
+
+                    app.render.users(); // update table
+                    console.log('✅ Users loaded:', store.users);
+
+                } catch (error) {
+                    console.warn('⚠️ Failed to load users, using mock fallback.', error);
+                    store.users = mockStore.users;
+                    app.render.users();
+                }
+            },
+            loadVehicles: async () => {
+                try {
+                    const response = await api.get('/api/vehicles'); // GET all vehicles
+                    if (Array.isArray(response)) {
+                        store.vehicles = response.map(v => ({
+                            id: v.id,
+                            ownerId: v.user_id,
+                            typeId: v.vehicle_type_id,
+                            brandId: v.brand_id,
+                            model: v.model_name,
+                            plate: v.license_plate,
+                            color: v.vehicle_color,
+                            year: v.vehicle_year,
+                            type: v.type?.name || 'Unknown'
+                        }));
+                        console.log('✅ Vehicles loaded:', store.vehicles);
+                    } else {
+                        throw new Error('Invalid vehicles API response');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to load vehicles, using mock fallback', error);
+                    store.vehicles = mockStore.vehicles;
+                }
+                app.render.vehicles();
+            },
+            loadTickets: async () => {
+                try {
+                    const response = await api.get('/api/tickets');
+
+                    if(response && response.status === 'success' && Array.isArray(response.tickets)) {
+                        store.tickets = response.tickets.map(t => ({
+                            id: t.id,
+                            userId: t.user_id,
+                            category: t.category,
+                            desc: t.other_text || '',
+                            status: t.status,
+                            lat: t.lat || 0,      // If you have lat/lng in API, else 0
+                            lng: t.lng || 0,
+                            date: t.created_at,
+                            media: t.media || []
+                        }));
+                        console.log('✅ Tickets loaded:', store.tickets);
+                    } else {
+                        throw new Error('Invalid tickets response');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Failed to load tickets, using mock fallback.', error);
+                    store.tickets = mockStore.tickets;
+                }
+
+                app.render.tickets();
+                app.render.dashboard();
+            },
+
+
         },
 
         navigate: (sectionId, element) => {
@@ -169,7 +332,7 @@
                 // Using helper to avoid null errors
                 dom.setText('stat-users', store.users.length);
                 dom.setText('stat-vehicles', store.vehicles.length);
-                dom.setText('stat-tickets', store.tickets.filter(t => t.status === 'Pending').length);
+                dom.setText('stat-tickets', store.tickets.filter(t => t.status === 'Open').length);
                 dom.setText('stat-brands', store.brands.length);
                 dom.setText('ticketBadge', store.tickets.filter(t => t.status === 'Pending').length);
 
@@ -212,7 +375,6 @@
                             <p class="text-xs fw-bold mb-0">${t.category}</p>
                             <p class="text-xs text-secondary mb-0 text-truncate" style="max-width:150px">${t.desc}</p>
                         </td>
-                        <td class="text-xs">Lat: ${t.lat}<br>Lng: ${t.lng}</td>
                         <td class="text-center"><i class="fa-solid fa-image text-muted"></i></td>
                         <td class="align-middle text-center"><span class="badge ${t.status === 'Pending' ? 'bg-warning' : 'bg-success'}">${t.status}</span></td>
                         <td>
@@ -414,19 +576,7 @@
         },
 
         crud: {
-            saveUser: async () => {
-                const name = document.getElementById('userName')?.value;
-                const email = document.getElementById('userEmail')?.value;
-                const phone = document.getElementById('userPhone')?.value;
-                
-                if(!name) return;
-                
-                const data = { name, email, phone };
-                try { await api.post('/api/users', data); await app.data.loadAll(); } catch(e) { console.warn('Saved locally (mock)'); store.users.push({...data, id: Date.now(), joined: '2025-02-23'}); }
-                app.render.users(); app.render.dashboard();
-                const el = document.getElementById('userModal');
-                if(el) bootstrap.Modal.getInstance(el).hide();
-            },
+    
             saveType: async () => {
                 const name = document.getElementById('typeName')?.value;
                 if(!name) return;
@@ -461,34 +611,28 @@
                 const container = document.getElementById('modelsContainer');
                 if(container) container.appendChild(div);
             },
-            saveBrand: async () => {
-                const name = document.getElementById('brandName')?.value;
-                if(!name) return;
-
-                const data = {
-                    name,
-                    typeId: document.getElementById('brandTypeSelect')?.value,
-                    logo: document.getElementById('brandLogo')?.value,
-                    models: Array.from(document.querySelectorAll('.model-input')).map(i => i.value).filter(v => v)
-                };
-                try { await api.post('/api/brands', data); await app.data.loadAll(); } catch(e) { store.brands.push({...data, id: Date.now(), type_id: data.typeId}); }
-                app.render.brands(); app.render.dashboard();
-                const el = document.getElementById('brandModal');
-                if(el) bootstrap.Modal.getInstance(el).hide();
-            },
+            
             savePlate: async () => {
-                const number = document.getElementById('plateNumber')?.value;
-                if(!number) return;
-                
-                const data = {
-                    number,
-                    img: document.getElementById('plateImage')?.value
-                };
-                try { await api.post('/api/plates', data); await app.data.loadAll(); } catch(e) { store.plates.push({...data, id: Date.now()}); }
+                const plate_number = document.getElementById('plateNumber')?.value;
+                if (!plate_number) return; // Correct
+
+                const data = { plate_number };
+
+                try {
+                    await api.post('/api/number-plate', data);
+                    await app.data.loadAll();
+                    await app.data.loadPlates();
+                } catch(e) {
+                    console.error('API failure, adding locally');
+                    store.plates.push({ id: Date.now(), number: plate_number });
+                }
+
                 app.render.plates();
                 const el = document.getElementById('plateModal');
-                if(el) bootstrap.Modal.getInstance(el).hide();
+                if (el) bootstrap.Modal.getInstance(el).hide();
+
             },
+
             updateTicket: async () => {
                 const id = document.getElementById('modalTicketId')?.value;
                 if(!id) return;
@@ -544,55 +688,310 @@
                 modelSelect.innerHTML = brand.models.map(m => `<option>${m}</option>`).join('');
                 modelSelect.disabled = false;
             },
-            saveBulkVehicles: async () => {
+            
+            // New function to handle the specific vehicle category deletion
+            deleteType: async (id) => {
+                const url = `/api/vehicle_category/${id}`;
+                try {
+                    console.log(`Attempting to delete vehicle category with ID: ${id} at ${url}`);
+                    // Use the generic API delete helper
+                    const response = await api.delete(url);
+
+                    if (response && response.success) {
+                        console.log(`✅ Vehicle category ${id} deleted successfully.`);
+                    } else if (response && response.error) {
+                        console.error(`❌ API reported error deleting category ${id}:`, response.error);
+                    } else {
+                        console.warn(`Category ${id} deleted but response was ambiguous. Reloading data.`);
+                    }
+                    
+                    // After API call (success or ambiguous), reload all types and re-render the grid
+                    await app.data.loadTypes();
+                } catch (error) {
+                    console.error(`❌ Failed to delete vehicle category ${id}:`, error);
+                    // Fallback for mock store: remove locally
+                    store.types = store.types.filter(t => t.id !== id);
+                    app.render.types();
+                }
+            },
+            // New/Updated generic delete function to route the call
+            delete: (dataType, id) => {
+                if (confirm(`Are you sure you want to delete this ${dataType.slice(0, -1)}?`)) {
+                    switch (dataType) {
+                        case 'users':
+                            // Example of user deletion endpoint (assuming /api/users/{id})
+                            app.crud.genericDelete('/api/users/', id, app.render.users);
+                            break;
+                        case 'types':
+                            // Route to the new deleteType function
+                            app.crud.deleteType(id);
+                            break;
+                        case 'brands':
+                            // Example of brand deletion endpoint (assuming /api/brands/{id})
+                            app.crud.genericDelete('/api/brands/', id, app.render.brands);
+                            break;
+                        case 'vehicles':
+                            // Example of vehicle deletion endpoint (assuming /api/vehicles/{id})
+                            app.crud.genericDelete('/api/vehicle/', id, app.render.vehicles);
+                            break;
+                        case 'plates':
+                            // Example of plate deletion endpoint (assuming /api/plates/{id})
+                            app.crud.genericDelete('/api/number-plate/', id, app.render.plates);
+                            break;
+                        default:
+                            console.error(`Unknown data type for deletion: ${dataType}`);
+                    }
+                }
+            },
+            
+            // Generic function for simpler delete operations (if needed)
+            genericDelete: async (baseUrl, id, renderCallback) => {
+                const url = `${baseUrl}${id}`;
+                try {
+                    await api.delete(url);
+                    await app.data.loadAll(); 
+
+                    if(baseUrl.includes('number-plate')) {
+                        await app.data.loadPlates();
+                    }
+                    if(baseUrl.includes('/api/brands')) {
+                        await app.data.loadBrands();
+                    }
+                    if(baseUrl.includes('/api/vehicle')) {
+                        await app.data.loadVehicles();
+                    }
+                } catch(e) { 
+                    console.warn(`Delete failed for ${url} (Mocking removal)`);
+                    // Simple mock removal - NOTE: The full `loadAll` handles this better, but this is a local fallback
+                    // For a proper fallback, you'd need to filter the specific store array.
+                }
+                renderCallback();
+                app.render.dashboard();
+            },
+
+            brandIndex: 0,
+
+        addBrandInput: function() {
+            const brandIndex = this.brandIndex++;
+            const container = document.getElementById('brandsContainer');
+
+            const brandDiv = document.createElement('div');
+            brandDiv.classList.add('brand-item', 'border', 'p-3', 'rounded');
+            brandDiv.dataset.index = brandIndex;
+
+            brandDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6>Brand ${brandIndex + 1}</h6>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="app.crud.removeBrandInput(this)">Remove Brand</button>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control brand-name" placeholder="Brand Name" required>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select brand-type" required></select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="file" class="form-control brand-logo">
+                    </div>
+                </div>
+                <div class="submodels-container d-flex flex-column gap-2">
+                    <!-- Submodel inputs -->
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addSubmodelInput(${brandIndex}, this)">+ Add Submodel</button>
+            `;
+
+            container.appendChild(brandDiv);
+
+            // Optionally populate vehicle types dynamically
+            const select = brandDiv.querySelector('.brand-type');
+            select.innerHTML = `<option value="1">Car</option><option value="2">Bike</option>`; // Replace with API call if needed
+        },
+
+        removeBrandInput: function(button) {
+            button.closest('.brand-item').remove();
+        },
+
+        addSubmodelInput: function(brandIndex, button) {
+            const brandDiv = button.closest('.brand-item');
+            const submodelsContainer = brandDiv.querySelector('.submodels-container');
+            const subIndex = submodelsContainer.children.length;
+
+            const subDiv = document.createElement('div');
+            subDiv.classList.add('row', 'g-2', 'align-items-center');
+            subDiv.innerHTML = `
+                <div class="col-md-5">
+                    <input type="text" class="form-control submodel-name" placeholder="Submodel Name" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.row').remove()">Remove</button>
+                </div>
+            `;
+            submodelsContainer.appendChild(subDiv);
+        },
+
+        saveBrands: async () => {
+                const container = document.getElementById('brandsContainer');
+                const brandItems = container.querySelectorAll('.brand-item');
+                if (!brandItems.length) return;
+
+                const formData = new FormData();
+
+                brandItems.forEach((brandDiv, i) => {
+                    const brandName = brandDiv.querySelector('.brand-name')?.value;
+                    const vehicleType = Number(brandDiv.querySelector('.brand-type')?.value);
+                    const logoFile = brandDiv.querySelector('.brand-logo')?.files[0];
+
+                    if (!brandName || !vehicleType) return;
+
+                    formData.append(`${i}[name]`, brandName);
+                    formData.append(`${i}[vehicle_type_id]`, vehicleType);
+                    if (logoFile) formData.append(`${i}[logo]`, logoFile);
+
+                    const submodels = brandDiv.querySelectorAll('.submodels-container .row');
+                    submodels.forEach((subDiv, j) => {
+                        const subName = subDiv.querySelector('.submodel-name')?.value;
+                        if (!subName) return;
+                        formData.append(`${i}[submodels][${j}][submodel_name]`, subName);
+                    });
+                });
+            console.log(formData);
+                try {
+                    await api.post('/api/vehicle_brands', formData);
+                    await app.data.loadAll();
+                    await app.data.loadBrands(); // ✅ make sure this updates store.brands
+                } catch (e) {
+                    console.error('API failure, adding brands locally', e);
+
+                    brandItems.forEach((brandDiv, i) => {
+                        const brandName = brandDiv.querySelector('.brand-name')?.value;
+                        const vehicleType = Number(brandDiv.querySelector('.brand-type')?.value);
+                        if (!brandName || !vehicleType) return;
+
+                        const brandObj = {
+                            id: Date.now() + i,
+                            name: brandName,
+                            type_id: vehicleType,
+                            logo: '', 
+                            models: Array.from(brandDiv.querySelectorAll('.submodels-container .submodel-name'))
+                                        .map(input => input.value)
+                        };
+
+                        store.brands.push(brandObj);
+                    });
+                }
+
+                app.render.brands(); // ✅ update UI
+
+                const el = document.getElementById('brandModal');
+                if (el) {
+                    const modalInstance = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+                    modalInstance.hide();
+                }
+        },
+
+        saveUser: async () => {
+            const id = document.getElementById('userId')?.value;
+            const name = document.getElementById('userName')?.value;
+            const email = document.getElementById('userEmail')?.value;
+            const phone = document.getElementById('userPhone')?.value;
+            const password = document.getElementById('userPassword')?.value;
+            const profileImage = document.getElementById('userProfileImage')?.files[0];
+
+            if (!name || !email || !phone || !password) {
+                return alert('Please fill all required fields.');
+            }
+
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('email', email);
+                    formData.append('phone', phone);
+                    formData.append('password', password);
+                    formData.append('password_confirmation', password);
+                    if (profileImage) formData.append('profile_image', profileImage);
+
+                    try {
+                        // Save user via API
+                        const res = await api.post('/api/register', formData);
+
+                        // Reload all users from API or fallback
+                        await app.data.loadUsers();
+
+                    // Optional: If you want, you can push the new user to store immediately
+                    store.users.push({
+                        id: res.id || Date.now(),
+                        name, email, phone,
+                        joined: new Date().toLocaleDateString(),
+                        profile_image: profileImage ? URL.createObjectURL(profileImage) : null
+                    });
+
+                } catch (e) {
+                    console.error('API failed, saving mock user locally', e);
+
+                    store.users.push({
+                        id: Date.now(),
+                        name, email, phone,
+                        joined: new Date().toLocaleDateString(),
+                        profile_image: profileImage ? URL.createObjectURL(profileImage) : null
+                    });
+                }
+
+                // Re-render user table
+                app.render.users();
+
+                // Clear the form fields
+                const form = document.getElementById('userForm'); // Make sure your <form> has id="userForm"
+                if (form) form.reset();
+
+                // Hide the modal
+                const el = document.getElementById('userModal');
+                if (el) bootstrap.Modal.getInstance(el)?.hide();
+            },
+        saveBulkVehicles: async () => {
                 const ownerId = document.getElementById('bulkVehicleOwner')?.value;
                 const rows = document.querySelectorAll('#bulkVehicleTable tbody tr');
                 const batch = [];
-                
-                rows.forEach(tr => {
-                    const typeId = tr.querySelector('.type-select')?.value;
-                    const brandId = tr.querySelector('.brand-select')?.value;
-                    const model = tr.querySelector('.model-select')?.value;
-                    const inputs = tr.querySelectorAll('input');
-                    const plate = inputs[0]?.value;
-                    const color = inputs[1]?.value;
-                    const year = inputs[2]?.value;
 
-                    if(typeId && brandId && plate) {
-                        batch.push({ ownerId, typeId, brandId, model, plate, color, year });
+                rows.forEach(tr => {
+                    const typeSelect = tr.querySelector('.type-select');
+                    const brandSelect = tr.querySelector('.brand-select');
+                    const modelSelect = tr.querySelector('.model-select');
+                    const inputs = tr.querySelectorAll('input');
+
+                    const vehicle_type = typeSelect?.selectedOptions[0]?.text || '';
+                    const brand_name = brandSelect?.selectedOptions[0]?.text || '';
+                    const model_name = modelSelect?.value || '';
+                    const license_plate = inputs[0]?.value || '';
+                    const color = inputs[1]?.value || '';
+                    const year = Number(inputs[2]?.value) || null;
+
+                    if(vehicle_type && brand_name && license_plate) {
+                        batch.push({ vehicle_type, brand_name, model_name, license_plate, color, year });
                     }
                 });
-                
+
                 if(batch.length > 0) {
                     try {
-                        await api.post('/api/vehicles', batch);
+                        await api.post('/api/vehicles', batch); // Send array to API
                         await app.data.loadAll();
+                        await app.data.loadTypes();
+                        await app.data.loadBrands();
+                        await app.data.loadVehicles(); 
                     } catch(e) {
-                        batch.forEach(v => store.vehicles.push({...v, id: Math.floor(Math.random()*10000), type: 'EV'}));
+                        console.error('API failed, saving locally', e);
+                        batch.forEach(v => store.vehicles.push({ ...v, id: Math.floor(Math.random() * 10000) }));
                     }
-                    app.render.vehicles(); app.render.dashboard();
-                    const el = document.getElementById('vehicleModal');
-                    if(el) bootstrap.Modal.getInstance(el).hide();
-                }
-            },
-            delete: async (type, id) => {
-                if(confirm('Are you sure you want to delete this item?')) {
-                    try {
-                        await api.delete(`/api/${type}/${id}`);
-                        await app.data.loadAll();
-                    } catch(e) {
-                        // Fallback delete
-                        store[type] = store[type].filter(item => item.id != id);
-                    }
-                    // Re-render the specific section
-                    if(type === 'users') app.render.users();
-                    if(type === 'types') app.render.types();
-                    if(type === 'brands') app.render.brands();
-                    if(type === 'vehicles') app.render.vehicles();
-                    if(type === 'plates') app.render.plates();
+
+                    app.render.vehicles();
                     app.render.dashboard();
+
+                    const el = document.getElementById('vehicleModal');
+                    if(el) bootstrap.Modal.getInstance(el)?.hide();
                 }
             }
+
+
+
         }
     };
 

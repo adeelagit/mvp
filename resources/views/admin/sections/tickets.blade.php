@@ -18,7 +18,6 @@
                         <th>ID</th>
                         <th>User Info</th>
                         <th>Issue</th>
-                        <th>Location</th>
                         <th>Media</th>
                         <th>Status</th>
                         <th>Actions</th>

@@ -7,7 +7,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="userForm">
+                <form id="userForm" enctype="multipart/form-data">
                     <input type="hidden" id="userId">
                     
                     <div class="row">
@@ -28,7 +28,11 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Password</label>
-                                <input type="password" class="form-control" id="userPassword" placeholder="Default: 123456" disabled>
+                                <input type="password" class="form-control" id="userPassword" placeholder="Enter password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Profile Image</label>
+                                <input type="file" class="form-control" id="userProfileImage" accept="image/*">
                             </div>
                         </div>
                     </div> 
@@ -64,45 +68,25 @@
     </div>
 </div>
 
-<!-- Brand Modal -->
+<!-- Bulk Brand Modal -->
 <div class="modal fade" id="brandModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Manage Brand & Models</h5>
+                <h5 class="modal-title">Manage Brands & Models (Bulk)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="brandForm">
-                    <input type="hidden" id="brandId">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Brand Name</label>
-                            <input type="text" class="form-control" id="brandName" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Vehicle Type</label>
-                            <select class="form-select" id="brandTypeSelect" required></select>
-                        </div>
-                        <div class="col-12 mb-3">
-                            <label class="form-label">Logo URL</label>
-                            <input type="text" class="form-control" id="brandLogo" placeholder="http://...">
-                        </div>
+                    <div id="brandsContainer" class="d-flex flex-column gap-4">
+                        <!-- Dynamic brand inputs go here -->
                     </div>
-                    
-                    <hr>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">Brand Models</h6>
-                        <button type="button" class="btn btn-sm btn-outline-success" onclick="app.crud.addModelInput()">+ Add Model</button>
-                    </div>
-                    <div id="modelsContainer" class="d-flex flex-column gap-2">
-                        <!-- Dynamic inputs -->
-                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addBrandInput()">+ Add Brand</button>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="app.crud.saveBrand()">Save Brand</button>
+                <button type="button" class="btn btn-primary" onclick="app.crud.saveBrands()">Save All Brands</button>
             </div>
         </div>
     </div>
@@ -164,10 +148,6 @@
                 <div class="mb-3">
                     <label class="form-label">Plate Number</label>
                     <input type="text" class="form-control text-uppercase" id="plateNumber" placeholder="KA 05 AB 1234">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Image URL (Optional)</label>
-                    <input type="text" class="form-control" id="plateImage" placeholder="http://...">
                 </div>
             </div>
             <div class="modal-footer">

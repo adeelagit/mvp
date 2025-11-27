@@ -16,7 +16,6 @@
                 <a class="nav-link" onclick="app.navigate('tickets', this)">
                     <i class="fa-solid fa-ticket"></i>
                     <span>Service Tickets</span>
-                    <span class="badge bg-danger ms-auto rounded-pill" id="ticketBadge">0</span>
                 </a>
             </li>
 
@@ -66,7 +65,7 @@
             </li>
 
             <li class="nav-item">
-                <a href="#" class="nav-link text-danger">
+                <a onclick="app.logout()" class="nav-link text-danger">
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span>Logout</span>
                 </a>
