@@ -112,9 +112,10 @@
             const form = document.getElementById('register-form');
             const statusMessage = document.getElementById('status-message');
             const registerButton = document.getElementById('register-button');
+            const baseUrl = window.location.origin;
 
             // --- Configuration (UPDATED) ---
-            const API_URL = 'http://127.0.0.1:8000/api/register';
+            const API_URL = `${baseUrl}//api/register`;
             // Redirect to the login page after successful registration
             const REDIRECT_URL = '/login-form'; 
             const MAX_RETRIES = 3;

@@ -73,7 +73,7 @@
     <script>
         // Simple in-memory object to simulate session storage for auth data
         const sessionStore = {}; 
-
+        const baseUrl = window.location.origin;
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('login-form');
             const emailInput = document.getElementById('email');
@@ -82,7 +82,7 @@
             const loginButton = document.getElementById('login-button');
 
             // --- Configuration ---
-            const API_URL = 'http://127.0.0.1:8000/api/login';
+            const API_URL = `${baseUrl}/api/login`;
             // The route name specified is 'admin.dashboard', we use the relative path
             const REDIRECT_URL = '/admin/dashboard'; 
             const MAX_RETRIES = 3;
