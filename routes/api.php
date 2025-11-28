@@ -15,9 +15,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::post('/ticket', [ServiceTicketController::class, 'store']);
+    Route::post('/ticket/{id}', [ServiceTicketController::class, 'updateTicketStatus']);
     Route::get('/tickets', [ServiceTicketController::class, 'index']);
     Route::delete('/tickets/{id}', [ServiceTicketController::class, 'delete']);
-
 
     Route::post('/vehicles', [VehicleController::class, 'store']);
     Route::get('/vehicles', [VehicleController::class, 'index']);
@@ -39,7 +39,6 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('/brands/{brand}', [VehicleController::class, 'deleteBrand']);
     Route::post('/brands/{brand}', [VehicleController::class, 'updateBrand']);
 
-
     Route::post('/number-plate', [VehicleController::class, 'storeNumberPlate']);
     Route::post('/number-plate/{id}', [VehicleController::class, 'updateNumberPlate']);
     Route::delete('/number-plate/{id}', [VehicleController::class, 'destroyNumberPlate']);
@@ -48,7 +47,6 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/users', [AuthController::class, 'index']);
     Route::post('/tickets', [ServiceTicketController::class, 'storeTicket']);
     Route::delete('/user/{id}', [AuthController::class, 'deleteUser']);
-    Route::post('/tickets/{id}', [ServiceTicketController::class, 'viewTicket']);
-
+    Route::get('/tickets/{id}', [ServiceTicketController::class, 'viewTicket']);
 
 });

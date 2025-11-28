@@ -101,10 +101,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Select Owner (User)</label>
-                    <select class="form-select" id="bulkVehicleOwner"></select>
-                </div>
                 
                 <div class="table-responsive">
                     <table class="table table-bordered" id="bulkVehicleTable">
@@ -194,8 +190,8 @@
                             <input type="hidden" id="modalTicketId">
                             <label class="form-label text-xs fw-bold">Update Status</label>
                             <select class="form-select form-select-sm" id="modalStatusSelect">
-                                <option value="Pending">Pending</option>
-                                <option value="Assigned">Assigned</option>
+                                <option value="Open">Open</option>
+                                <option value="In Progress">In Progress</option>
                                 <option value="Resolved">Resolved</option>
                             </select>
                         </div>

@@ -35,7 +35,7 @@ class VehicleController extends Controller
                 'vehicle_type'  => 'required|string|max:100',
                 'brand_name'    => 'required|string|max:100',
                 'model_name'    => 'required|string|max:100',
-                'license_plate' => 'string|max:50|unique:vehicles,license_plate',
+                'license_plate' => 'nullable|string|max:50',
                 'color'         => 'nullable|string|max:50',
                 'year'          => 'nullable|integer|min:2000|max:' . date('Y'),
             ]);
@@ -85,6 +85,7 @@ class VehicleController extends Controller
                 return [
                     'id' => $brand->id,
                     'name' => $brand->name,
+                    'vehicle_type_id' => $brand->vehicle_type_id,
                     'logo' => $brand->logo ? asset('storage/' . $brand->logo) : null,
                     'submodels' => $brand->submodels->map(function ($sub) {
                         return [

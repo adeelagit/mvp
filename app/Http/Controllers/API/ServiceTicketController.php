@@ -222,4 +222,35 @@ class ServiceTicketController extends Controller
             'ticket' => $tickets->load('media')
         ], 201);
     }
+
+    public function updateTicketStatus(Request $request, $id)
+    {
+        // Validate request first
+        $validated = $request->validate([
+            'status' => 'required|in:Open,In Progress,Resolved',
+        ], [
+            'status.required' => 'The status field is required.',
+            'status.in' => 'Invalid status. Allowed values are: Open, In Progress, Resolved.',
+        ]);
+
+        $ticket = ServiceTicket::find($id);
+
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Service Ticket not found or already deleted.'
+            ], 404);
+        }
+
+        // Save update
+        $ticket->status = $validated['status'];
+        $ticket->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket status updated successfully!',
+            'ticket' => $ticket->load('media')
+        ], 200);
+    }
+
 }

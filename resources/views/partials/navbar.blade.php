@@ -7,11 +7,6 @@
     </div>
     
     <div class="d-flex align-items-center gap-4">
-        <div class="input-group d-none d-md-flex" style="width: 250px;">
-            <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
-            <input type="text" class="form-control bg-light border-start-0" placeholder="Search...">
-        </div>
-
         <div class="dropdown">
             <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
                 <img src="https://ui-avatars.com/api/?name=Admin+User&background=0d6efd&color=fff" class="avatar me-2" alt="Admin">
@@ -24,7 +19,7 @@
                 <li><a class="dropdown-item" href="#">Profile</a></li>
                 <li><a class="dropdown-item" href="#" onclick="app.navigate('settings', document.querySelectorAll('.nav-link')[7])">Settings</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="#">Logout</a></li>
+                <li><a class="dropdown-item text-danger" onclick="app.logout()">Logout</a></li>
             </ul>
         </div>
     </div>

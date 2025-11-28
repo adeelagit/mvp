@@ -85,20 +85,29 @@
     // --- APP LOGIC (unchanged) ---
     const app = {
         logout: async () => {
-    try {
-        await api.post('/api/logout'); // calls Laravel logout
-    } catch(e) {
-        console.warn('Logout failed or offline mode');
-    }
+            try {
+                await api.post('/api/logout');
+            } catch(e) {
+                console.warn('Logout failed or offline mode');
+            }
 
-    // remove stored token
-    localStorage.removeItem('auth_token');
+            // remove stored token
+            localStorage.removeItem('auth_token');
 
-    // redirect to login page (or reload)
-    window.location.href = '/login-form';
-},
+            // redirect to login page (or reload)
+            window.location.href = '/login-form';
+        },
+
         init: async () => {
-            await app.data.loadAll(); // Load data from Laravel or Fallback
+            const ticketStatusDropdown = document.getElementById('ticket_status');
+            if(ticketStatusDropdown) {
+                ticketStatusDropdown.addEventListener('change', (e) => {
+                    const status = e.target.value; // "", "Open", "In Progress", "Resolved"
+                    app.render.tickets(status);   // render filtered tickets
+                });
+            }
+
+            await app.data.loadAll(); 
             await app.data.loadTypes();
             await app.data.loadPlates();
             await app.data.loadBrands();
@@ -133,7 +142,7 @@
                         response[category].forEach(b => {
                             brandsArray.push({
                                 id: b.id,
-                                type_id: 1, // Adjust if you have a type mapping
+                                type_id: b.vehicle_type_id,
                                 name: b.name,
                                 logo: b.logo,
                                 models: (b.submodels || []).map(sm => sm.submodel_name)
@@ -334,7 +343,7 @@
                 // Using helper to avoid null errors
                 dom.setText('stat-users', store.users.length);
                 dom.setText('stat-vehicles', store.vehicles.length);
-                dom.setText('stat-tickets', store.tickets.filter(t => t.status === 'Open').length);
+                dom.setText('stat-tickets', store.tickets.filter(t => t.status !== 'Resolved').length);
                 dom.setText('stat-brands', store.brands.length);
                 dom.setText('ticketBadge', store.tickets.filter(t => t.status === 'Pending').length);
 
@@ -344,7 +353,7 @@
                         const u = store.users.find(user => user.id === t.userId) || {name: 'Unknown'};
                         const badge = t.status === 'Pending' ? 'bg-gradient-warning' : 'bg-gradient-success';
                         return `<tr>
-                            <td><span class="text-xs fw-bold">#${t.id}</span></td>
+                            <td><span class="text-xs fw-bold">${t.id}</span></td>
                             <td><div class="d-flex align-items-center">
                                 <img src="https://ui-avatars.com/api/?name=${u.name}&background=random" class="avatar me-2"><span class="text-sm">${u.name}</span></div></td>
                             <td><span class="text-xs">${t.category}</span></td>
@@ -355,18 +364,24 @@
                 }
             },
             
-            tickets: () => {
+            tickets: (statusFilter = '') => {
                 const tbody = document.getElementById('tickets-table-body');
                 if(!tbody) return;
 
-                tbody.innerHTML = store.tickets.map(t => {
+                let filteredTickets = store.tickets;
+                if (statusFilter) {
+                    filteredTickets = filteredTickets.filter(t => t.status === statusFilter);
+                }
+
+                tbody.innerHTML = filteredTickets.map(t => {
                     const u = store.users.find(user => user.id === t.userId) || {name: 'Unknown', phone: 'N/A'};
                     return `<tr>
-                        <td><span class="text-xs fw-bold">#${t.id}</span></td>
+                        <td><span class="text-xs fw-bold">${t.id}</span></td>
                         <td>
                             <div class="d-flex px-2 py-1">
                                 <div>
-                                    <img src="https://ui-avatars.com/api/?name=${u.name}&background=random" class="avatar me-3"></div>
+                                    <img src="https://ui-avatars.com/api/?name=${u.name}&background=random" class="avatar me-3">
+                                </div>
                                 <div class="d-flex flex-column justify-content-center">
                                     <h6 class="mb-0 text-sm">${u.name}</h6>
                                     <p class="text-xs text-secondary mb-0">${u.phone}</p>
@@ -377,12 +392,15 @@
                             <p class="text-xs fw-bold mb-0">${t.category}</p>
                             <p class="text-xs text-secondary mb-0 text-truncate" style="max-width:150px">${t.desc}</p>
                         </td>
-                        <td class="align-middle text-center"><span class="badge ${t.status === 'Pending' ? 'bg-warning' : 'bg-success'}">${t.status}</span></td>
+                        <td class="align-middle text-center">
+                            <span class="badge ${t.status === 'In Progress' ? 'bg-warning' : t.status === 'Resolved' ? 'bg-success' : 'bg-secondary'}">
+                                ${t.status}
+                            </span>
+                        </td>
                         <td>
                             <button class="btn btn-link text-secondary mb-0" onclick="app.modals.openTicketModal(${t.id})">
                                 <i class="fa-solid fa-eye text-xs"></i>
                             </button>
-
                             <button class="btn btn-link text-danger mb-0" onclick="app.crud.delete('tickets', ${t.id})">
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>
@@ -440,7 +458,6 @@
             brands: () => {
                 const grid = document.getElementById('brands-grid');
                 if (!grid) return;
-
                 grid.innerHTML = store.brands.map(b => {
                     const typeName = store.types.find(t => t.id == b.type_id)?.name || 'Unknown';
                     const modelsHtml = b.models.map(m => 
@@ -460,7 +477,10 @@
                                 <div class="d-flex flex-wrap justify-content-center">
                                     ${modelsHtml}
                                 </div>
-                                <div class="position-absolute bottom-0 end-0 p-3 pt-3">
+                                <div class="position-absolute top-0 end-0 pl-3">
+                                    <a class="btn btn-outline-primary">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
                                     <a href="javascript:;" onclick="app.crud.delete('brands', ${b.id})" class="text-danger" title="Delete">
                                         <i class="fa-solid fa-trash text-xs"></i>
                                     </a>
@@ -482,16 +502,21 @@
                         <td>
                             <div class="d-flex flex-column">
                                 <h6 class="mb-0 text-sm">${brand?.name} ${v.model}</h6>
-                                <p class="text-xs text-secondary mb-0">ID: #${v.id}</p>
+                                <p class="text-xs text-secondary mb-0">ID: ${v.id}</p>
                             </div>
                         </td>
                         <td><p class="text-xs font-weight-bold mb-0">${owner?.name || 'Unknown'}</p></td>
                         <td class="align-middle text-sm"><div class="plate-card py-1 px-2" style="font-size:0.7rem">${v.plate}</div></td>
                         <td><span class="text-secondary text-xs fw-bold">${v.color} (${v.year})</span></td>
                         <td class="align-middle text-center"><span class="text-secondary text-xs font-weight-bold">${v.type}</span></td>
-                        <td><button class="btn btn-link text-danger mb-0" onclick="app.crud.delete('vehicles', ${v.id})">
-                            <i class="fa-solid fa-trash text-xs"></i>
-                        </button> </td>             
+                        <td>
+                            <button class="btn btn-outline-primary">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn btn-link text-danger mb-0" onclick="app.crud.delete('vehicles', ${v.id})">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                         </td>             
                     </tr>`;
                 }).join('');
             },
@@ -504,7 +529,6 @@
                     <div class="col-md-3 col-sm-6">
                         <div class="card card-body text-center border-0 shadow-sm">
                             <div class="plate-card mx-auto mb-2">${p.number}</div>
-                            ${p.img ? `<img src="${p.img}" class="img-fluid rounded mb-2" style="height:40px; object-fit:contain;">` : ''}
                             <button class="btn btn-link text-danger btn-sm p-0" onclick="app.crud.delete('plates', ${p.id})">Remove</button>
                         </div>
                     </div>
@@ -536,10 +560,7 @@
                 const el = document.getElementById('plateModal');
                 if(el) new bootstrap.Modal(el).show();
             },
-            openVehicleModal: () => {
-                const select = document.getElementById('bulkVehicleOwner');
-                if(select) select.innerHTML = store.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
-                
+            openVehicleModal: () => {                
                 const tbody = document.querySelector('#bulkVehicleTable tbody');
                 if(tbody) tbody.innerHTML = '';
                 
@@ -548,98 +569,97 @@
                 if(el) new bootstrap.Modal(el).show();
             },
             openTicketModal: (id) => {
-    const ticket = store.tickets.find(t => t.id === id);
-    if (!ticket) return;
+                const ticket = store.tickets.find(t => t.id === id);
+                if (!ticket) return;
 
-    const user = store.users.find(u => u.id === ticket.userId) || {};
+                const user = store.users.find(u => u.id === ticket.userId) || {};
 
-    // Set user details
-    dom.setText('modalUserName', user.name || '');
-    dom.setText('modalUserPhone', user.phone || '');
-    dom.setText('modalCategory', ticket.category || '');
-    dom.setText('modalDesc', ticket.desc || '');
+                // Set user details
+                dom.setText('modalUserName', user.name || '');
+                dom.setText('modalUserPhone', user.phone || '');
+                dom.setText('modalCategory', ticket.category || '');
+                dom.setText('modalDesc', ticket.desc || '');
 
-    const img = document.getElementById('modalUserImg');
-    if (img) img.src = `https://ui-avatars.com/api/?name=${user.name}`;
+                const img = document.getElementById('modalUserImg');
+                if (img) img.src = `https://ui-avatars.com/api/?name=${user.name}`;
 
-    const hiddenId = document.getElementById('modalTicketId');
-    if (hiddenId) hiddenId.value = ticket.id;
+                const hiddenId = document.getElementById('modalTicketId');
+                if (hiddenId) hiddenId.value = ticket.id;
 
-    // 📌 MEDIA PREVIEW SECTION
-    const mediaContainer = document.getElementById('modalMedia');
-    if (mediaContainer) {
-        mediaContainer.innerHTML = ""; // Clear old media
+                // 📌 MEDIA PREVIEW SECTION
+                const mediaContainer = document.getElementById('modalMedia');
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = ""; // Clear old media
 
-        if (ticket.media && ticket.media.length > 0) {
-            ticket.media.forEach((file, i) => {
-                if (file.type === "image") {
-                    mediaContainer.innerHTML += `
-                        <img src="${file.full_url}" 
-                            style="width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;"
-                            onclick="app.modals.previewMedia('${file.full_url}', 'image')">
-                    `;
+                    if (ticket.media && ticket.media.length > 0) {
+                        ticket.media.forEach((file, i) => {
+                            if (file.type === "image") {
+                                mediaContainer.innerHTML += `
+                                    <img src="${file.full_url}" 
+                                        style="width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;"
+                                        onclick="app.modals.previewMedia('${file.full_url}', 'image')">
+                                `;
+                            }
+
+                            if (file.type === "video") {
+                                mediaContainer.innerHTML += `
+                                    <div style="width:70px;height:70px;position:relative;border-radius:6px;
+                                        background:#000;display:flex;align-items:center;justify-content:center;
+                                        cursor:pointer;overflow:hidden;"
+                                        onclick="app.modals.previewMedia('${file.full_url}', 'video')">
+                                        
+                                        <img src="https://img.icons8.com/ios-glyphs/60/ffffff/play-button-circled.png"
+                                            style="width:24px;height:24px;position:absolute;z-index:2;opacity:0.9;">
+                                        
+                                        <video style="width:100%;height:100%;opacity:0.3;object-fit:cover;">
+                                            <source src="${file.full_url}" type="video/mp4">
+                                        </video>
+                                    </div>
+                                `;
+                            }
+                        });
+                    } else {
+                        mediaContainer.innerHTML = `<p class="text-xs text-muted">No media uploaded.</p>`;
+                    }
+                }
+                // 📌 END MEDIA SECTION
+
+                // Show modal
+                const el = document.getElementById('ticketModal');
+                if (el) {
+                    new bootstrap.Modal(el).show();
+
+                    // Initialize map after modal shown
+                    setTimeout(() => {
+                        if (window.mapInstance) window.mapInstance.remove();
+                        const mapEl = document.getElementById('map');
+                        if (mapEl) {
+                            window.mapInstance = L.map('map').setView([ticket.lat, ticket.lng], 13);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.mapInstance);
+                            L.marker([ticket.lat, ticket.lng]).addTo(window.mapInstance);
+                        }
+                    }, 500);
+                }
+            },
+
+            previewMedia: (url, type) => {
+                let view = "";
+                if (type === "image") {
+                    view = `<img src="${url}" style="width:100%;border-radius:10px;">`;
+                } else if (type === "video") {
+                    view = `
+                        <video controls style="width:100%;border-radius:10px;">
+                            <source src="${url}" type="video/mp4">
+                        </video>`;
                 }
 
-                if (file.type === "video") {
-                    mediaContainer.innerHTML += `
-                        <div style="width:70px;height:70px;position:relative;border-radius:6px;
-                            background:#000;display:flex;align-items:center;justify-content:center;
-                            cursor:pointer;overflow:hidden;"
-                            onclick="app.modals.previewMedia('${file.full_url}', 'video')">
-                            
-                            <img src="https://img.icons8.com/ios-glyphs/60/ffffff/play-button-circled.png"
-                                style="width:24px;height:24px;position:absolute;z-index:2;opacity:0.9;">
-                            
-                            <video style="width:100%;height:100%;opacity:0.3;object-fit:cover;">
-                                <source src="${file.full_url}" type="video/mp4">
-                            </video>
-                        </div>
-                    `;
-                }
-            });
-        } else {
-            mediaContainer.innerHTML = `<p class="text-xs text-muted">No media uploaded.</p>`;
-        }
-    }
-    // 📌 END MEDIA SECTION
-
-    // Show modal
-    const el = document.getElementById('ticketModal');
-    if (el) {
-        new bootstrap.Modal(el).show();
-
-        // Initialize map after modal shown
-        setTimeout(() => {
-            if (window.mapInstance) window.mapInstance.remove();
-            const mapEl = document.getElementById('map');
-            if (mapEl) {
-                window.mapInstance = L.map('map').setView([ticket.lat, ticket.lng], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.mapInstance);
-                L.marker([ticket.lat, ticket.lng]).addTo(window.mapInstance);
+                Swal.fire({
+                    html: view,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: "60%"
+                });
             }
-        }, 500);
-    }
-},
-
-previewMedia: (url, type) => {
-    let view = "";
-    if (type === "image") {
-        view = `<img src="${url}" style="width:100%;border-radius:10px;">`;
-    } else if (type === "video") {
-        view = `
-            <video controls style="width:100%;border-radius:10px;">
-                <source src="${url}" type="video/mp4">
-            </video>`;
-    }
-
-    Swal.fire({
-        html: view,
-        showCloseButton: true,
-        showConfirmButton: false,
-        width: "60%"
-    });
-}
-
 
         },
 
@@ -664,7 +684,7 @@ previewMedia: (url, type) => {
                     // Mock fallback
                     store.types.push({ name, id: Date.now(), icon: 'fa-circle' }); 
                 }
-                
+                document.getElementById('typeName').value = '';
                 app.render.types();
                 const el = document.getElementById('typeModal');
                 if(el) bootstrap.Modal.getInstance(el).hide();
@@ -682,7 +702,7 @@ previewMedia: (url, type) => {
             
             savePlate: async () => {
                 const plate_number = document.getElementById('plateNumber')?.value;
-                if (!plate_number) return; // Correct
+                if (!plate_number) return;
 
                 const data = { plate_number };
 
@@ -694,27 +714,11 @@ previewMedia: (url, type) => {
                     console.error('API failure, adding locally');
                     store.plates.push({ id: Date.now(), number: plate_number });
                 }
-
+                document.getElementById('plateNumber').value = '';
                 app.render.plates();
                 const el = document.getElementById('plateModal');
                 if (el) bootstrap.Modal.getInstance(el).hide();
 
-            },
-
-            updateTicket: async () => {
-                const id = document.getElementById('modalTicketId')?.value;
-                if(!id) return;
-                
-                const data = {
-                    id,
-                    status: document.getElementById('modalStatusSelect')?.value
-                };
-                try { await api.post('/api/tickets', data); await app.data.loadAll(); } catch(e) { 
-                    const t = store.tickets.find(tick => tick.id == data.id); if(t) t.status = data.status;
-                }
-                app.render.tickets(); app.render.dashboard();
-                const el = document.getElementById('ticketModal');
-                if(el) bootstrap.Modal.getInstance(el).hide();
             },
             
             // Bulk Vehicle Logic
@@ -844,203 +848,202 @@ previewMedia: (url, type) => {
 
             brandIndex: 0,
 
-        addBrandInput: function() {
-    const brandIndex = this.brandIndex++;
-    const container = document.getElementById('brandsContainer');
-
-    const brandDiv = document.createElement('div');
-    brandDiv.classList.add('brand-item', 'border', 'p-3', 'rounded');
-    brandDiv.dataset.index = brandIndex;
-
-    brandDiv.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6>Brand ${brandIndex + 1}</h6>
-            <button type="button" class="btn btn-sm btn-danger" onclick="app.crud.removeBrandInput(this)">Remove Brand</button>
-        </div>
-        <div class="row g-2 mb-2">
-            <div class="col-md-5">
-                <input type="text" class="form-control brand-name" placeholder="Brand Name" required>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select brand-type" required>
-                    <option value="">Select Vehicle Type</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <input type="file" class="form-control brand-logo">
-            </div>
-        </div>
-        <div class="submodels-container d-flex flex-column gap-2">
-            <!-- Submodel inputs -->
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addSubmodelInput(${brandIndex}, this)">+ Add Submodel</button>
-    `;
-
-    container.appendChild(brandDiv);
-
-    // ✅ Populate vehicle types dynamically from store.types
-    const select = brandDiv.querySelector('.brand-type');
-    if (Array.isArray(store.types) && store.types.length > 0) {
-        select.innerHTML = store.types
-            .map(t => `<option value="${t.id}">${t.name}</option>`)
-            .join('');
-    } else {
-        // Optional: fallback if types are not loaded yet
-        select.innerHTML = `<option value="">No types available</option>`;
-    }
-},
-
-
-        removeBrandInput: function(button) {
-            button.closest('.brand-item').remove();
-        },
-
-        addSubmodelInput: function(brandIndex, button) {
-            const brandDiv = button.closest('.brand-item');
-            const submodelsContainer = brandDiv.querySelector('.submodels-container');
-            const subIndex = submodelsContainer.children.length;
-
-            const subDiv = document.createElement('div');
-            subDiv.classList.add('row', 'g-2', 'align-items-center');
-            subDiv.innerHTML = `
-                <div class="col-md-5">
-                    <input type="text" class="form-control submodel-name" placeholder="Submodel Name" required>
-                </div>
-                <div class="col-md-5">
-                    <input type="file" class="form-control submodel-image">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.row').remove()">Remove</button>
-                </div>
-            `;
-            submodelsContainer.appendChild(subDiv);
-        },
-
-        saveBrands: async () => {
+            addBrandInput: function() {
+                const brandIndex = this.brandIndex++;
                 const container = document.getElementById('brandsContainer');
-                const brandItems = container.querySelectorAll('.brand-item');
-                if (!brandItems.length) return;
 
-                const formData = new FormData();
+                const brandDiv = document.createElement('div');
+                brandDiv.classList.add('brand-item', 'border', 'p-3', 'rounded');
+                brandDiv.dataset.index = brandIndex;
 
-                brandItems.forEach((brandDiv, i) => {
-                    const brandName = brandDiv.querySelector('.brand-name')?.value;
-                    const vehicleType = Number(brandDiv.querySelector('.brand-type')?.value);
-                    const logoFile = brandDiv.querySelector('.brand-logo')?.files[0];
+                brandDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6>Brand ${brandIndex + 1}</h6>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="app.crud.removeBrandInput(this)">Remove Brand</button>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control brand-name" placeholder="Brand Name" required>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select brand-type" required>
+                                <option value="">Select Vehicle Type</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="file" class="form-control brand-logo">
+                        </div>
+                    </div>
+                    <div class="submodels-container d-flex flex-column gap-2">
+                        <!-- Submodel inputs -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addSubmodelInput(${brandIndex}, this)">+ Add Submodel</button>
+                `;
 
-                    if (!brandName || !vehicleType) return;
+                container.appendChild(brandDiv);
 
-                    formData.append(`${i}[name]`, brandName);
-                    formData.append(`${i}[vehicle_type_id]`, vehicleType);
-                    if (logoFile) formData.append(`${i}[logo]`, logoFile);
+                // ✅ Populate vehicle types dynamically from store.types
+                const select = brandDiv.querySelector('.brand-type');
+                if (Array.isArray(store.types) && store.types.length > 0) {
+                    select.innerHTML = store.types
+                        .map(t => `<option value="${t.id}">${t.name}</option>`)
+                        .join('');
+                } else {
+                    // Optional: fallback if types are not loaded yet
+                    select.innerHTML = `<option value="">No types available</option>`;
+                }
+            },
 
-                    const submodels = brandDiv.querySelectorAll('.submodels-container .row');
-                    submodels.forEach((subDiv, j) => {
-                        const subName = subDiv.querySelector('.submodel-name')?.value;
-                        const subImage = subDiv.querySelector('.submodel-image')?.files[0];
+            removeBrandInput: function(button) {
+                button.closest('.brand-item').remove();
+            },
 
-                        if (!subName) return;
+            addSubmodelInput: function(brandIndex, button) {
+                const brandDiv = button.closest('.brand-item');
+                const submodelsContainer = brandDiv.querySelector('.submodels-container');
+                const subIndex = submodelsContainer.children.length;
 
-                        formData.append(`${i}[submodels][${j}][submodel_name]`, subName);
-                        if (subImage) {
-                            formData.append(`${i}[submodels][${j}][submodel_image]`, subImage);
-                        }
-                    });
-                });
-            console.log(formData);
-                try {
-                    await api.post('/api/vehicle_brands', formData);
-                    await app.data.loadAll();
-                    await app.data.loadBrands(); // ✅ make sure this updates store.brands
-                } catch (e) {
-                    console.error('API failure, adding brands locally', e);
+                const subDiv = document.createElement('div');
+                subDiv.classList.add('row', 'g-2', 'align-items-center');
+                subDiv.innerHTML = `
+                    <div class="col-md-5">
+                        <input type="text" class="form-control submodel-name" placeholder="Submodel Name" required>
+                    </div>
+                    <div class="col-md-5">
+                        <input type="file" class="form-control submodel-image">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.row').remove()">Remove</button>
+                    </div>
+                `;
+                submodelsContainer.appendChild(subDiv);
+            },
+
+            saveBrands: async () => {
+                    const container = document.getElementById('brandsContainer');
+                    const brandItems = container.querySelectorAll('.brand-item');
+                    if (!brandItems.length) return;
+
+                    const formData = new FormData();
 
                     brandItems.forEach((brandDiv, i) => {
                         const brandName = brandDiv.querySelector('.brand-name')?.value;
                         const vehicleType = Number(brandDiv.querySelector('.brand-type')?.value);
+                        const logoFile = brandDiv.querySelector('.brand-logo')?.files[0];
+
                         if (!brandName || !vehicleType) return;
 
-                        const brandObj = {
-                            id: Date.now() + i,
-                            name: brandName,
-                            type_id: vehicleType,
-                            logo: '', 
-                            models: Array.from(brandDiv.querySelectorAll('.submodels-container .submodel-name'))
-                                        .map(input => input.value)
-                        };
+                        formData.append(`${i}[name]`, brandName);
+                        formData.append(`${i}[vehicle_type_id]`, vehicleType);
+                        if (logoFile) formData.append(`${i}[logo]`, logoFile);
 
-                        store.brands.push(brandObj);
+                        const submodels = brandDiv.querySelectorAll('.submodels-container .row');
+                        submodels.forEach((subDiv, j) => {
+                            const subName = subDiv.querySelector('.submodel-name')?.value;
+                            const subImage = subDiv.querySelector('.submodel-image')?.files[0];
+
+                            if (!subName) return;
+
+                            formData.append(`${i}[submodels][${j}][submodel_name]`, subName);
+                            if (subImage) {
+                                formData.append(`${i}[submodels][${j}][submodel_image]`, subImage);
+                            }
+                        });
                     });
-                }
-
-                app.render.brands(); // ✅ update UI
-
-                const el = document.getElementById('brandModal');
-                if (el) {
-                    const modalInstance = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
-                    modalInstance.hide();
-                }
-        },
-
-        saveUser: async () => {
-            const id = document.getElementById('userId')?.value;
-            const name = document.getElementById('userName')?.value;
-            const email = document.getElementById('userEmail')?.value;
-            const phone = document.getElementById('userPhone')?.value;
-            const password = document.getElementById('userPassword')?.value;
-            const profileImage = document.getElementById('userProfileImage')?.files[0];
-
-            if (!name || !email || !phone || !password) {
-                return alert('Please fill all required fields.');
-            }
-
-                    const formData = new FormData();
-                    formData.append('name', name);
-                    formData.append('email', email);
-                    formData.append('phone', phone);
-                    formData.append('password', password);
-                    formData.append('password_confirmation', password);
-                    if (profileImage) formData.append('profile_image', profileImage);
-
+                console.log(formData);
                     try {
-                        // Save user via API
-                        const res = await api.post('/api/register', formData);
+                        await api.post('/api/vehicle_brands', formData);
+                        await app.data.loadAll();
+                        await app.data.loadBrands(); // ✅ make sure this updates store.brands
+                    } catch (e) {
+                        console.error('API failure, adding brands locally', e);
 
-                        // Reload all users from API or fallback
-                        await app.data.loadUsers();
+                        brandItems.forEach((brandDiv, i) => {
+                            const brandName = brandDiv.querySelector('.brand-name')?.value;
+                            const vehicleType = Number(brandDiv.querySelector('.brand-type')?.value);
+                            if (!brandName || !vehicleType) return;
 
-                    // Optional: If you want, you can push the new user to store immediately
-                    store.users.push({
-                        id: res.id || Date.now(),
-                        name, email, phone,
-                        joined: new Date().toLocaleDateString(),
-                        profile_image: profileImage ? URL.createObjectURL(profileImage) : null
-                    });
+                            const brandObj = {
+                                id: Date.now() + i,
+                                name: brandName,
+                                type_id: vehicleType,
+                                logo: '', 
+                                models: Array.from(brandDiv.querySelectorAll('.submodels-container .submodel-name'))
+                                            .map(input => input.value)
+                            };
 
-                } catch (e) {
-                    console.error('API failed, saving mock user locally', e);
+                            store.brands.push(brandObj);
+                        });
+                    }
 
-                    store.users.push({
-                        id: Date.now(),
-                        name, email, phone,
-                        joined: new Date().toLocaleDateString(),
-                        profile_image: profileImage ? URL.createObjectURL(profileImage) : null
-                    });
+                    app.render.brands(); // ✅ update UI
+                    container.innerHTML = '';
+                    const el = document.getElementById('brandModal');
+                    if (el) {
+                        const modalInstance = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+                        modalInstance.hide();
+                    }
+            },
+
+            saveUser: async () => {
+                const id = document.getElementById('userId')?.value;
+                const name = document.getElementById('userName')?.value;
+                const email = document.getElementById('userEmail')?.value;
+                const phone = document.getElementById('userPhone')?.value;
+                const password = document.getElementById('userPassword')?.value;
+                const profileImage = document.getElementById('userProfileImage')?.files[0];
+
+                if (!name || !email || !phone || !password) {
+                    return alert('Please fill all required fields.');
                 }
 
-                // Re-render user table
-                app.render.users();
+                        const formData = new FormData();
+                        formData.append('name', name);
+                        formData.append('email', email);
+                        formData.append('phone', phone);
+                        formData.append('password', password);
+                        formData.append('password_confirmation', password);
+                        if (profileImage) formData.append('profile_image', profileImage);
 
-                // Clear the form fields
-                const form = document.getElementById('userForm'); // Make sure your <form> has id="userForm"
-                if (form) form.reset();
+                        try {
+                            // Save user via API
+                            const res = await api.post('/api/register', formData);
 
-                // Hide the modal
-                const el = document.getElementById('userModal');
-                if (el) bootstrap.Modal.getInstance(el)?.hide();
+                            // Reload all users from API or fallback
+                            await app.data.loadUsers();
+
+                        // Optional: If you want, you can push the new user to store immediately
+                        store.users.push({
+                            id: res.id || Date.now(),
+                            name, email, phone,
+                            joined: new Date().toLocaleDateString(),
+                            profile_image: profileImage ? URL.createObjectURL(profileImage) : null
+                        });
+
+                    } catch (e) {
+                        console.error('API failed, saving mock user locally', e);
+
+                        store.users.push({
+                            id: Date.now(),
+                            name, email, phone,
+                            joined: new Date().toLocaleDateString(),
+                            profile_image: profileImage ? URL.createObjectURL(profileImage) : null
+                        });
+                    }
+
+                    // Re-render user table
+                    app.render.users();
+
+                    // Clear the form fields
+                    const form = document.getElementById('userForm'); // Make sure your <form> has id="userForm"
+                    if (form) form.reset();
+
+                    // Hide the modal
+                    const el = document.getElementById('userModal');
+                    if (el) bootstrap.Modal.getInstance(el)?.hide();
             },
-        saveBulkVehicles: async () => {
-                const ownerId = document.getElementById('bulkVehicleOwner')?.value;
+
+            saveBulkVehicles: async () => {
                 const rows = document.querySelectorAll('#bulkVehicleTable tbody tr');
                 const batch = [];
 
@@ -1080,9 +1083,34 @@ previewMedia: (url, type) => {
                     const el = document.getElementById('vehicleModal');
                     if(el) bootstrap.Modal.getInstance(el)?.hide();
                 }
-            }
+            },
 
+            updateTicket: async () => {
+                const id = document.getElementById('modalTicketId')?.value;
+                if (!id) return;
 
+                const status = document.getElementById('modalStatusSelect')?.value;
+                if (!status) return;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('status', status);
+
+                    await api.post(`/api/ticket/${id}`, formData);
+                    await app.data.loadAll();
+                    await app.data.loadTickets();
+                } catch (e) {
+                    console.error('API failure, updating locally', e);
+                    const t = store.tickets.find(tick => tick.id == id);
+                    if (t) t.status = status;
+                }
+
+                app.render.tickets();
+                app.render.dashboard();
+
+                const el = document.getElementById('ticketModal');
+                if (el) bootstrap.Modal.getInstance(el).hide();
+            },
 
         }
     };

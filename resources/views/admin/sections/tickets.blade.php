@@ -3,11 +3,11 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h6 class="mb-0 fw-bold">Service Management</h6>
             <div class="d-flex gap-2">
-                <select class="form-select form-select-sm" style="width: 150px;">
+                <select class="form-select form-select-sm" style="width: 150px;" id="ticket_status">
                     <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="assigned">Assigned</option>
-                    <option value="resolved">Resolved</option>
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
                 </select>
             </div>
         </div>
