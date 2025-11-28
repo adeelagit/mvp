@@ -121,13 +121,31 @@ class AuthController extends Controller
             'email', 
             'phone', 
             'profile_image', 
-            'email_verified_at'
+            'email_verified_at',
+            'created_at'
         ]);
 
         return response()->json([
             'status' => 'success',
             'users' => $users,
         ]);
+    }
+
+    public function deleteUser($userId)
+    {
+        $user = user::find($userId);
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Record not found',
+            ], 404);
+        }
+        $user->delete();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'User deleted successfully',
+        ], 200);
     }
 
 }

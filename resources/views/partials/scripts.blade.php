@@ -1,5 +1,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <script>
     // --- MOCK DATA FOR PREVIEW/FALLBACK (rest of the mockStore remains the same) ---
@@ -230,7 +232,7 @@
                             name: u.name,
                             email: u.email,
                             phone: u.phone,
-                            joined: u.email_verified_at ? new Date(u.email_verified_at).toLocaleDateString() : 'N/A',
+                            joined: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A',
                             profile_image: u.profile_image
                         }));
                     } else {
@@ -375,11 +377,14 @@
                             <p class="text-xs fw-bold mb-0">${t.category}</p>
                             <p class="text-xs text-secondary mb-0 text-truncate" style="max-width:150px">${t.desc}</p>
                         </td>
-                        <td class="text-center"><i class="fa-solid fa-image text-muted"></i></td>
                         <td class="align-middle text-center"><span class="badge ${t.status === 'Pending' ? 'bg-warning' : 'bg-success'}">${t.status}</span></td>
                         <td>
                             <button class="btn btn-link text-secondary mb-0" onclick="app.modals.openTicketModal(${t.id})">
                                 <i class="fa-solid fa-eye text-xs"></i>
+                            </button>
+
+                            <button class="btn btn-link text-danger mb-0" onclick="app.crud.delete('tickets', ${t.id})">
+                                <i class="fa-solid fa-trash text-xs"></i>
                             </button>
                         </td>
                     </tr>`;
@@ -543,36 +548,99 @@
                 if(el) new bootstrap.Modal(el).show();
             },
             openTicketModal: (id) => {
-                const ticket = store.tickets.find(t => t.id === id);
-                if(!ticket) return;
+    const ticket = store.tickets.find(t => t.id === id);
+    if (!ticket) return;
 
-                const user = store.users.find(u => u.id === ticket.userId) || {};
-                
-                dom.setText('modalUserName', user.name || '');
-                dom.setText('modalUserPhone', user.phone || '');
-                dom.setText('modalCategory', ticket.category || '');
-                dom.setText('modalDesc', ticket.desc || '');
-                
-                const img = document.getElementById('modalUserImg');
-                if(img) img.src = `https://ui-avatars.com/api/?name=${user.name}`;
-                
-                const hiddenId = document.getElementById('modalTicketId');
-                if(hiddenId) hiddenId.value = ticket.id;
-                
-                const el = document.getElementById('ticketModal');
-                if(el) {
-                    new bootstrap.Modal(el).show();
-                    setTimeout(() => {
-                        if(window.mapInstance) window.mapInstance.remove();
-                        const mapEl = document.getElementById('map');
-                        if(mapEl) {
-                            window.mapInstance = L.map('map').setView([ticket.lat, ticket.lng], 13);
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.mapInstance);
-                            L.marker([ticket.lat, ticket.lng]).addTo(window.mapInstance);
-                        }
-                    }, 500);
+    const user = store.users.find(u => u.id === ticket.userId) || {};
+
+    // Set user details
+    dom.setText('modalUserName', user.name || '');
+    dom.setText('modalUserPhone', user.phone || '');
+    dom.setText('modalCategory', ticket.category || '');
+    dom.setText('modalDesc', ticket.desc || '');
+
+    const img = document.getElementById('modalUserImg');
+    if (img) img.src = `https://ui-avatars.com/api/?name=${user.name}`;
+
+    const hiddenId = document.getElementById('modalTicketId');
+    if (hiddenId) hiddenId.value = ticket.id;
+
+    // 📌 MEDIA PREVIEW SECTION
+    const mediaContainer = document.getElementById('modalMedia');
+    if (mediaContainer) {
+        mediaContainer.innerHTML = ""; // Clear old media
+
+        if (ticket.media && ticket.media.length > 0) {
+            ticket.media.forEach((file, i) => {
+                if (file.type === "image") {
+                    mediaContainer.innerHTML += `
+                        <img src="${file.full_url}" 
+                            style="width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;"
+                            onclick="app.modals.previewMedia('${file.full_url}', 'image')">
+                    `;
                 }
+
+                if (file.type === "video") {
+                    mediaContainer.innerHTML += `
+                        <div style="width:70px;height:70px;position:relative;border-radius:6px;
+                            background:#000;display:flex;align-items:center;justify-content:center;
+                            cursor:pointer;overflow:hidden;"
+                            onclick="app.modals.previewMedia('${file.full_url}', 'video')">
+                            
+                            <img src="https://img.icons8.com/ios-glyphs/60/ffffff/play-button-circled.png"
+                                style="width:24px;height:24px;position:absolute;z-index:2;opacity:0.9;">
+                            
+                            <video style="width:100%;height:100%;opacity:0.3;object-fit:cover;">
+                                <source src="${file.full_url}" type="video/mp4">
+                            </video>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            mediaContainer.innerHTML = `<p class="text-xs text-muted">No media uploaded.</p>`;
+        }
+    }
+    // 📌 END MEDIA SECTION
+
+    // Show modal
+    const el = document.getElementById('ticketModal');
+    if (el) {
+        new bootstrap.Modal(el).show();
+
+        // Initialize map after modal shown
+        setTimeout(() => {
+            if (window.mapInstance) window.mapInstance.remove();
+            const mapEl = document.getElementById('map');
+            if (mapEl) {
+                window.mapInstance = L.map('map').setView([ticket.lat, ticket.lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.mapInstance);
+                L.marker([ticket.lat, ticket.lng]).addTo(window.mapInstance);
             }
+        }, 500);
+    }
+},
+
+previewMedia: (url, type) => {
+    let view = "";
+    if (type === "image") {
+        view = `<img src="${url}" style="width:100%;border-radius:10px;">`;
+    } else if (type === "video") {
+        view = `
+            <video controls style="width:100%;border-radius:10px;">
+                <source src="${url}" type="video/mp4">
+            </video>`;
+    }
+
+    Swal.fire({
+        html: view,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: "60%"
+    });
+}
+
+
         },
 
         crud: {
@@ -719,24 +787,23 @@
                 if (confirm(`Are you sure you want to delete this ${dataType.slice(0, -1)}?`)) {
                     switch (dataType) {
                         case 'users':
-                            // Example of user deletion endpoint (assuming /api/users/{id})
-                            app.crud.genericDelete('/api/users/', id, app.render.users);
+                            app.crud.genericDelete('/api/user/', id, app.render.users);
                             break;
                         case 'types':
                             // Route to the new deleteType function
                             app.crud.deleteType(id);
                             break;
                         case 'brands':
-                            // Example of brand deletion endpoint (assuming /api/brands/{id})
                             app.crud.genericDelete('/api/brands/', id, app.render.brands);
                             break;
                         case 'vehicles':
-                            // Example of vehicle deletion endpoint (assuming /api/vehicles/{id})
                             app.crud.genericDelete('/api/vehicle/', id, app.render.vehicles);
                             break;
                         case 'plates':
-                            // Example of plate deletion endpoint (assuming /api/plates/{id})
                             app.crud.genericDelete('/api/number-plate/', id, app.render.plates);
+                            break;
+                        case 'tickets':
+                            app.crud.genericDelete('/api/tickets/', id, app.render.tickets);
                             break;
                         default:
                             console.error(`Unknown data type for deletion: ${dataType}`);
@@ -760,6 +827,12 @@
                     if(baseUrl.includes('/api/vehicle')) {
                         await app.data.loadVehicles();
                     }
+                    if(baseUrl.includes('/api/user')) {
+                        await app.data.loadUsers();
+                    }
+                    if(baseUrl.includes('/api/tickets')) {
+                        await app.data.loadTickets();
+                    }
                 } catch(e) { 
                     console.warn(`Delete failed for ${url} (Mocking removal)`);
                     // Simple mock removal - NOTE: The full `loadAll` handles this better, but this is a local fallback
@@ -772,41 +845,51 @@
             brandIndex: 0,
 
         addBrandInput: function() {
-            const brandIndex = this.brandIndex++;
-            const container = document.getElementById('brandsContainer');
+    const brandIndex = this.brandIndex++;
+    const container = document.getElementById('brandsContainer');
 
-            const brandDiv = document.createElement('div');
-            brandDiv.classList.add('brand-item', 'border', 'p-3', 'rounded');
-            brandDiv.dataset.index = brandIndex;
+    const brandDiv = document.createElement('div');
+    brandDiv.classList.add('brand-item', 'border', 'p-3', 'rounded');
+    brandDiv.dataset.index = brandIndex;
 
-            brandDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6>Brand ${brandIndex + 1}</h6>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="app.crud.removeBrandInput(this)">Remove Brand</button>
-                </div>
-                <div class="row g-2 mb-2">
-                    <div class="col-md-5">
-                        <input type="text" class="form-control brand-name" placeholder="Brand Name" required>
-                    </div>
-                    <div class="col-md-3">
-                        <select class="form-select brand-type" required></select>
-                    </div>
-                    <div class="col-md-4">
-                        <input type="file" class="form-control brand-logo">
-                    </div>
-                </div>
-                <div class="submodels-container d-flex flex-column gap-2">
-                    <!-- Submodel inputs -->
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addSubmodelInput(${brandIndex}, this)">+ Add Submodel</button>
-            `;
+    brandDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6>Brand ${brandIndex + 1}</h6>
+            <button type="button" class="btn btn-sm btn-danger" onclick="app.crud.removeBrandInput(this)">Remove Brand</button>
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-md-5">
+                <input type="text" class="form-control brand-name" placeholder="Brand Name" required>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select brand-type" required>
+                    <option value="">Select Vehicle Type</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="file" class="form-control brand-logo">
+            </div>
+        </div>
+        <div class="submodels-container d-flex flex-column gap-2">
+            <!-- Submodel inputs -->
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="app.crud.addSubmodelInput(${brandIndex}, this)">+ Add Submodel</button>
+    `;
 
-            container.appendChild(brandDiv);
+    container.appendChild(brandDiv);
 
-            // Optionally populate vehicle types dynamically
-            const select = brandDiv.querySelector('.brand-type');
-            select.innerHTML = `<option value="1">Car</option><option value="2">Bike</option>`; // Replace with API call if needed
-        },
+    // ✅ Populate vehicle types dynamically from store.types
+    const select = brandDiv.querySelector('.brand-type');
+    if (Array.isArray(store.types) && store.types.length > 0) {
+        select.innerHTML = store.types
+            .map(t => `<option value="${t.id}">${t.name}</option>`)
+            .join('');
+    } else {
+        // Optional: fallback if types are not loaded yet
+        select.innerHTML = `<option value="">No types available</option>`;
+    }
+},
+
 
         removeBrandInput: function(button) {
             button.closest('.brand-item').remove();
@@ -822,6 +905,9 @@
             subDiv.innerHTML = `
                 <div class="col-md-5">
                     <input type="text" class="form-control submodel-name" placeholder="Submodel Name" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="file" class="form-control submodel-image">
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.row').remove()">Remove</button>
@@ -851,8 +937,14 @@
                     const submodels = brandDiv.querySelectorAll('.submodels-container .row');
                     submodels.forEach((subDiv, j) => {
                         const subName = subDiv.querySelector('.submodel-name')?.value;
+                        const subImage = subDiv.querySelector('.submodel-image')?.files[0];
+
                         if (!subName) return;
+
                         formData.append(`${i}[submodels][${j}][submodel_name]`, subName);
+                        if (subImage) {
+                            formData.append(`${i}[submodels][${j}][submodel_image]`, subImage);
+                        }
                     });
                 });
             console.log(formData);

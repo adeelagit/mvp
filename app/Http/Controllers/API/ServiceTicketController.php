@@ -207,4 +207,19 @@ class ServiceTicketController extends Controller
             'ticket' => $ticket->load('media')
         ], 201);
     }
+
+    public function viewTicket($id){
+        $tickets = ServiceTicket::find($id);
+
+        if(!$tickets){
+            return response()->json([
+                'success' => false,
+                'message' => 'Service Ticket not found or already deleted.'
+            ], 404);
+        }
+        return response()->json([
+            'message' => 'Ticket created successfully!',
+            'ticket' => $tickets->load('media')
+        ], 201);
+    }
 }

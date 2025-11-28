@@ -176,10 +176,17 @@
                                 <p class="text-xs text-muted mb-0" id="modalUserPhone"></p>
                             </div>
                         </div>
+
                         <h6 class="text-xs fw-bold text-uppercase text-muted mt-4">Issue</h6>
                         <p class="fw-bold mb-1" id="modalCategory"></p>
                         <p class="text-sm text-muted" id="modalDesc"></p>
+
+                        <!-- 📌 ADDED MEDIA PREVIEW SECTION -->
+                        <h6 class="text-xs fw-bold text-uppercase text-muted mt-4">Media</h6>
+                        <div id="modalMedia" class="d-flex flex-wrap gap-2"></div>
+                        <!-- 📌 END -->
                     </div>
+
                     <div class="col-md-6">
                         <h6 class="text-xs fw-bold text-uppercase text-muted">Location</h6>
                         <div id="map"></div>
@@ -193,6 +200,7 @@
                             </select>
                         </div>
                     </div>
+
                 </div>
             </div>
             <div class="modal-footer">

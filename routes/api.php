@@ -47,5 +47,8 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('/users', [AuthController::class, 'index']);
     Route::post('/tickets', [ServiceTicketController::class, 'storeTicket']);
+    Route::delete('/user/{id}', [AuthController::class, 'deleteUser']);
+    Route::post('/tickets/{id}', [ServiceTicketController::class, 'viewTicket']);
+
 
 });
