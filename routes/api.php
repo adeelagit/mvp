@@ -6,12 +6,16 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ServiceTicketController;
 use App\Http\Controllers\API\VehicleController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\ForgotPasswordController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/verify-email/{token}', [AuthController::class, 'verifyEmail']);
 Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp']);
 Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('login', [AuthController::class, 'login']);
+Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendResetOtp']);
+Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyResetOtp']);
+Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);

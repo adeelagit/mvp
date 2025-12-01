@@ -28,6 +28,8 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at',
         'email_otp',
         'email_otp_expires_at',
+        'password_reset_otp',
+        'password_reset_otp_expires_at'
     ];
 
     /**
@@ -40,6 +42,8 @@ class User extends Authenticatable implements JWTSubject
         'remember_token',
         'verification_token',
         'email_otp',
+        'password_reset_otp',
+        'password_reset_otp_expires_at'
     ];
 
     /**
@@ -53,6 +57,7 @@ class User extends Authenticatable implements JWTSubject
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'email_otp_expires_at' => 'datetime',
+            'password_reset_otp_expires_at' => 'immutable_datetime',
         ];
     }
 
