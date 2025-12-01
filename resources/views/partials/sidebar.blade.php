@@ -55,14 +55,14 @@
                 </a>
             </li>
 
-            <div class="nav-category">System</div>
+            {{-- <div class="nav-category">System</div>
 
             <li class="nav-item">
                 <a class="nav-link" onclick="app.navigate('settings', this)">
                     <i class="fa-solid fa-gear"></i>
                     <span>Settings</span>
                 </a>
-            </li>
+            </li> --}}
 
             <li class="nav-item">
                 <a onclick="app.logout()" class="nav-link text-danger">

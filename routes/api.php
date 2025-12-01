@@ -9,6 +9,8 @@ use App\Http\Controllers\LocationController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/verify-email/{token}', [AuthController::class, 'verifyEmail']);
+Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp']);
+Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('login', [AuthController::class, 'login']);
 
 Route::middleware('auth:api')->group(function () {

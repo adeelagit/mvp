@@ -16,8 +16,8 @@
                 </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end border-0 shadow-sm">
-                <li><a class="dropdown-item" href="#">Profile</a></li>
-                <li><a class="dropdown-item" href="#" onclick="app.navigate('settings', document.querySelectorAll('.nav-link')[7])">Settings</a></li>
+                {{-- <li><a class="dropdown-item" href="#">Profile</a></li>
+                <li><a class="dropdown-item" href="#" onclick="app.navigate('settings', document.querySelectorAll('.nav-link')[7])">Settings</a></li> --}}
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-danger" onclick="app.logout()">Logout</a></li>
             </ul>

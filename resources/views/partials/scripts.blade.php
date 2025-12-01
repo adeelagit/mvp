@@ -477,10 +477,7 @@
                                 <div class="d-flex flex-wrap justify-content-center">
                                     ${modelsHtml}
                                 </div>
-                                <div class="position-absolute top-0 end-0 pl-3">
-                                    <a class="btn btn-outline-primary">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </a>
+                                <div class="position-absolute bottom-0 end-0 p-3">
                                     <a href="javascript:;" onclick="app.crud.delete('brands', ${b.id})" class="text-danger" title="Delete">
                                         <i class="fa-solid fa-trash text-xs"></i>
                                     </a>
@@ -510,9 +507,6 @@
                         <td><span class="text-secondary text-xs fw-bold">${v.color} (${v.year})</span></td>
                         <td class="align-middle text-center"><span class="text-secondary text-xs font-weight-bold">${v.type}</span></td>
                         <td>
-                            <button class="btn btn-outline-primary">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
                             <button class="btn btn-link text-danger mb-0" onclick="app.crud.delete('vehicles', ${v.id})">
                                 <i class="fa-solid fa-trash text-xs"></i>
                             </button>

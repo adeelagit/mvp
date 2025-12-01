@@ -39,12 +39,14 @@ class AuthController extends Controller
         $data['password'] = Hash::make($data['password']);
         $verification_token = Str::random(64);
         $data['verification_token'] = $verification_token;
+        $otp = rand(100000, 999999); // 6-digit OTP
+        $data['email_otp'] = $otp;
         $user = User::create($data);
 
         Mail::to($user->email)->send(new VerifyEmail($user));
 
         return response()->json([
-            'message' => 'User registered successfully. Please verify your email',
+            'message' => 'Registration successful. Verification email and OTP sent.',
             'user' => $user,
         ], 201);
     }
@@ -94,7 +96,9 @@ class AuthController extends Controller
 
         $user->update([
             'email_verified_at' => now(),
-            'verification_token' => null
+            'verification_token' => null,
+            'email_otp' => null,
+            'email_otp_expires_at' => null,
         ]);
 
         return response()->json(['message' => 'Email verified successfully! You can now log in.']);
@@ -146,6 +150,69 @@ class AuthController extends Controller
             'status' => true,
             'message' => 'User deleted successfully',
         ], 200);
+    }
+
+    // Verify by OTP (API)
+    public function verifyEmailOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|digits:6',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        if (!$user->email_otp || $user->email_otp !== $request->otp) {
+            return response()->json(['message' => 'Invalid OTP.'], 400);
+        }
+
+        if ($user->email_otp_expires_at && $user->email_otp_expires_at->isPast()) {
+            return response()->json(['message' => 'OTP expired.'], 400);
+        }
+
+        $user->update([
+            'email_verified_at' => now(),
+            'email_otp' => null,
+            'email_otp_expires_at' => null,
+            'verification_token' => null,
+        ]);
+
+        return response()->json(['message' => 'Email verified successfully!']);
+    }
+
+    // Resend OTP (generates a fresh OTP and sends it)
+    public function resendOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['message' => 'Email already verified.'], 400);
+        }
+
+        $otp = rand(100000, 999999);
+        $token = $user->verification_token ?? Str::random(60);
+
+        $user->update([
+            'email_otp' => $otp,
+            'email_otp_expires_at' => now()->addMinutes(10),
+            'verification_token' => $token,
+        ]);
+
+        Mail::to($user->email)->send(new VerifyEmailMail($user));
+
+        return response()->json(['message' => 'OTP resent. Please check your email.']);
     }
 
 }

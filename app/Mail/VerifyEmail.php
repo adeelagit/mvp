@@ -63,6 +63,7 @@ class VerifyEmail extends Mailable
                     ->with([
                         'name' => $this->user->name,
                         'url' => $verificationUrl,
+                        'otp'  => $this->user->email_otp,
                     ]);
     }
 }
